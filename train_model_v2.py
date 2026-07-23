@@ -68,8 +68,54 @@ def simulate_emg(gesture, user_scale=1.0, fatigue=0.0, artifacts=True):
     return emg
 
 # ═══════════════════════════════════════════════════
+# FEATURE EXTRACTION  — 15 features
+# ═══════════════════════════════════════════════════
+FEATURE_NAMES = [
+    'MAV','MMAV','RMS','VAR','STD',
+    'WL','AAC','DASDV',
+    'ZC','SSC',
+    'IEMG',
+    'HjorthActivity','HjorthMobility','HjorthComplexity',
+    'MYOP'
+]
+
+def extract_features(sig, zc_thresh=0.01, ssc_thresh=0.003, myop_mult=3.0):
+    n   = len(sig)
+    mu  = np.mean(sig)
+    std = np.std(sig)
+
+    # ── Amplitude / power features ──────────────────
+    mav  = np.mean(np.abs(sig))
+    # Modified MAV: full weight in middle 50%, half weight outside
+    w    = np.where((np.arange(n)>=n//4) & (np.arange(n)<3*n//4), 1.0, 0.5)
+    mmav = np.sum(w * np.abs(sig)) / n
+    rms  = np.sqrt(np.mean(sig**2))
+    var  = np.var(sig)
+    iemg = np.sum(np.abs(sig))                                  # Integrated EMG
+
+    # ── Complexity / morphology features ─────────────
+    diff1  = np.diff(sig)
+    diff2  = np.diff(diff1)
+    wl     = np.sum(np.abs(diff1))                              # Waveform Length
+    aac    = np.mean(np.abs(diff1))                             # Average Amplitude Change
+    dasdv  = np.sqrt(np.mean(diff1**2))                        # DASDV
+
+    # ── Frequency-information features ───────────────
+    # Zero crossings with hysteresis
+    hi, lo = sig >  zc_thresh, sig < -zc_thresh
+    zc     = int(np.sum((hi[1:] & lo[:-1]) | (lo[1:] & hi[:-1])))
+
+    # Slope sign changes
+    d1, d2 = diff1[:-1], diff1[1:]
+    ssc    = int(np.sum(
+        (np.abs(d1-d2) >= ssc_thresh) &
+        (((d1>0)&(d2<0)) | ((d1<0)&(d2>0)))
+    ))
+
+    
+    return np.array([mav, mmav, rms, var, std, wl, aac, dasdv, zc, ssc, iemg])
 
 if __name__ == '__main__':
-    print("EMG Signal Simulation Initialized.")
     sig = simulate_emg('FIST')
-    print(f"Sample signal shape: {sig.shape}, mean: {sig.mean():.4f}, std: {sig.std():.4f}")
+    feats = extract_features(sig)
+    print(f"Extracted {len(feats)} Hudgins time-domain features.")
