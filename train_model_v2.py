@@ -112,10 +112,29 @@ def extract_features(sig, zc_thresh=0.01, ssc_thresh=0.003, myop_mult=3.0):
         (((d1>0)&(d2<0)) | ((d1<0)&(d2>0)))
     ))
 
-    
-    return np.array([mav, mmav, rms, var, std, wl, aac, dasdv, zc, ssc, iemg])
+    # ── Hjorth parameters ─────────────────────────────
+    activity   = var                                            # Power
+    var_d1     = np.var(diff1)
+    mobility   = np.sqrt(var_d1 / (var + 1e-12))             # Frequency estimate
+    var_d2     = np.var(diff2)
+    complexity = (np.sqrt(var_d2/(var_d1+1e-12)) /
+                  (mobility + 1e-12))                          # Waveform complexity
+
+    # ── Myopulse Percentage Rate ──────────────────────
+    threshold = myop_mult * std
+    myop      = float(np.sum(np.abs(sig) > threshold)) / n
+
+    return np.array([
+        mav, mmav, rms, var, std,
+        wl, aac, dasdv,
+        zc, ssc,
+        iemg,
+        activity, mobility, complexity,
+        myop
+    ])
+
 
 if __name__ == '__main__':
-    sig = simulate_emg('FIST')
+    sig = simulate_emg('DOUBLE_FLEX')
     feats = extract_features(sig)
-    print(f"Extracted {len(feats)} Hudgins time-domain features.")
+    print(f"Extracted all {len(feats)} features including Hjorth parameters.")
