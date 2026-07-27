@@ -133,8 +133,100 @@ def extract_features(sig, zc_thresh=0.01, ssc_thresh=0.003, myop_mult=3.0):
         myop
     ])
 
+# ═══════════════════════════════════════════════════
+# DATASET GENERATION
+# ═══════════════════════════════════════════════════
+def build_dataset():
+    print(f"Building dataset: {N_USERS} users × {len(GESTURES)} gestures × {N_TRIALS} trials")
+    X, y, users = [], [], []
+
+    for uid in range(N_USERS):
+        u_scale   = np.random.uniform(0.50, 1.60)
+        noise_var = np.random.uniform(0.85, 1.15)
+
+        for gesture in GESTURES:
+            for trial in range(N_TRIALS):
+                fatigue = (trial / N_TRIALS) * 0.30    # up to 30% drop
+                sig  = simulate_emg(gesture, u_scale, fatigue)
+                feat = extract_features(sig)
+                X.append(feat)
+                y.append(gesture)
+                users.append(uid)
+
+    return np.array(X), np.array(y), np.array(users)
+
+# ═══════════════════════════════════════════════════
+# CALIBRATION  (per-user normalization)
+# ═══════════════════════════════════════════════════
+def calibrate_user(u_scale, n_reps=7):
+    ratios = []
+    for gesture in GESTURES:
+        for _ in range(n_reps):
+            sig  = simulate_emg(gesture, u_scale)
+            feat = extract_features(sig)
+            rms  = feat[2]   # index 2 = RMS
+            if rms > 0.001:
+                ratios.append(rms / EXP_RMS[gesture])
+    return float(np.median(ratios))
+
+def apply_calibration(X_vec, cal_scale):
+    v = X_vec.copy().astype(float)
+    # Amplitude-based features: linear with scale
+    v[[0,1,2,4,6,7,10]] /= cal_scale
+    # Variance features: quadratic
+    v[[3,11]]           /= cal_scale**2
+    # WL: linear
+    v[5]                /= cal_scale
+    # Count / ratio features (ZC, SSC, MYOP): unchanged
+    # Hjorth Mobility / Complexity: scale-invariant approximation
+    return v
+
+# ═══════════════════════════════════════════════════
+# TRAINING
+# ═══════════════════════════════════════════════════
+def train_and_evaluate():
+    print("\n" + "="*65)
+    print("  EMG GESTURE RECOGNITION v2 — ENHANCED ML PIPELINE")
+    print("="*65)
+
+    X, y, users = build_dataset()
+    print(f"\nDataset: {X.shape[0]} samples × {X.shape[1]} features")
+    for g in GESTURES:
+        print(f"  {g:<14}: {np.sum(y==g)} samples")
+
+    # User-independent split: last 3 users as test
+    test_uids = np.unique(users)[-3:]
+    mask      = np.isin(users, test_uids)
+    X_tr, y_tr = X[~mask], y[~mask]
+    X_te, y_te = X[mask],  y[mask]
+    print(f"\nTrain: {X_tr.shape[0]} ({N_USERS-3} users) | Test: {X_te.shape[0]} ({len(test_uids)} unseen users)")
+
+    # ── Feature scaling ──────────────────────────────
+    scaler = StandardScaler()
+    X_tr_s = scaler.fit_transform(X_tr)
+    X_te_s = scaler.transform(X_te)
+
+    # ── Model zoo ────────────────────────────────────
+    print("\n── 5-fold CV on training set ──")
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM)
+
+    models_raw = {
+        "Gaussian NB":        Pipeline([('sc', StandardScaler()), ('m', GaussianNB())]),
+        "K-NN (k=7)":         Pipeline([('sc', StandardScaler()), ('m', KNeighborsClassifier(n_neighbors=7, metric='euclidean'))]),
+        "SVM (RBF, C=10)":    Pipeline([('sc', StandardScaler()), ('m', SVC(C=10, gamma='scale', probability=True))]),
+        "Random Forest 200":  RandomForestClassifier(n_estimators=200, max_features='sqrt', class_weight='balanced', random_state=RANDOM, n_jobs=-1),
+        "Gradient Boosting":  GradientBoostingClassifier(n_estimators=150, max_depth=4, learning_rate=0.1, random_state=RANDOM),
+    }
+    cv_scores = {}
+    for name, clf in models_raw.items():
+        XX = X_tr if "Forest" in name or "Boost" in name else X_tr
+        sc = cross_val_score(clf, XX, y_tr, cv=cv, scoring='accuracy', n_jobs=-1)
+        cv_scores[name] = sc
+        print(f"  {name:<25}: {sc.mean():.4f} ± {sc.std():.4f}")
+
+    
+    print("Baseline cross validation complete.")
 
 if __name__ == '__main__':
-    sig = simulate_emg('DOUBLE_FLEX')
-    feats = extract_features(sig)
-    print(f"Extracted all {len(feats)} features including Hjorth parameters.")
+    X, y, users = build_dataset()
+    print(f"Generated dataset with {len(X)} samples.")
