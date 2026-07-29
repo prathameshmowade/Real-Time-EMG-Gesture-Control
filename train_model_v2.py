@@ -224,9 +224,149 @@ def train_and_evaluate():
         cv_scores[name] = sc
         print(f"  {name:<25}: {sc.mean():.4f} ± {sc.std():.4f}")
 
-    
-    print("Baseline cross validation complete.")
+    # ── Grid search on Random Forest ─────────────────
+    print("\n── Grid search: Random Forest ──")
+    param_grid = {
+        'n_estimators': [100, 200, 300],
+        'max_depth':    [None, 10, 20],
+        'max_features': ['sqrt', 'log2'],
+        'min_samples_leaf': [1, 2],
+    }
+    rf_base = RandomForestClassifier(class_weight='balanced', random_state=RANDOM, n_jobs=-1)
+    gs = GridSearchCV(rf_base, param_grid, cv=cv, scoring='accuracy', n_jobs=-1, verbose=0)
+    gs.fit(X_tr, y_tr)
+    print(f"  Best params : {gs.best_params_}")
+    print(f"  Best CV acc : {gs.best_score_:.4f}")
+
+    # ── Best RF ───────────────────────────────────────
+    rf_best = gs.best_estimator_
+    print(f"\n── Best RF test accuracy: {accuracy_score(y_te, rf_best.predict(X_te)):.4f}")
+
+    # ── Weighted Voting Ensemble ──────────────────────
+    # Use models that work best raw (no scaling needed)
+    print("\n── Building weighted ensemble ──")
+    gnb = Pipeline([('sc', StandardScaler()), ('m', GaussianNB())])
+    svm = Pipeline([('sc', StandardScaler()), ('m', SVC(C=10, gamma='scale', probability=True))])
+    gnb.fit(X_tr, y_tr); svm.fit(X_tr, y_tr)
+
+    gnb_acc = accuracy_score(y_te, gnb.predict(X_te))
+    svm_acc = accuracy_score(y_te, svm.predict(X_te))
+    rf_acc  = accuracy_score(y_te, rf_best.predict(X_te))
+
+    print(f"  GNB test acc : {gnb_acc:.4f}")
+    print(f"  SVM test acc : {svm_acc:.4f}")
+    print(f"  RF  test acc : {rf_acc:.4f}")
+
+    ensemble = VotingClassifier(
+        estimators=[
+            ('gnb', gnb),
+            ('svm', svm),
+            ('rf',  rf_best),
+        ],
+        voting='soft',
+        weights=[gnb_acc, svm_acc, rf_acc]
+    )
+    ensemble.fit(X_tr, y_tr)
+    ens_acc_tr = accuracy_score(y_tr, ensemble.predict(X_tr))
+    ens_acc_te = accuracy_score(y_te, ensemble.predict(X_te))
+    print(f"\n  Ensemble train: {ens_acc_tr:.4f} ({ens_acc_tr*100:.2f}%)")
+    print(f"  Ensemble test : {ens_acc_te:.4f} ({ens_acc_te*100:.2f}%)")
+
+    print("\nClassification report — ENSEMBLE (test set):")
+    print(classification_report(y_te, ensemble.predict(X_te), target_names=GESTURES))
+
+    cm = confusion_matrix(y_te, ensemble.predict(X_te), labels=GESTURES)
+    cm_df = pd.DataFrame(cm, index=GESTURES, columns=GESTURES)
+    print("Confusion matrix:")
+    print(cm_df)
+
+    # ── Feature importance ────────────────────────────
+    fi = pd.Series(rf_best.feature_importances_, index=FEATURE_NAMES).sort_values(ascending=False)
+    print("\nFeature Importances (Random Forest):")
+    for feat, imp in fi.items():
+        bar = "█" * int(imp * 40)
+        print(f"  {feat:<20} {imp:.4f}  {bar}")
+
+    # ── Calibration improvement ───────────────────────
+    print("\n── Calibration simulation (8 new users) ──")
+    raw_accs, cal_accs = [], []
+    for i in range(8):
+        u_scale = np.random.uniform(0.40, 1.80)
+        X_new, y_new = [], []
+        for g in GESTURES:
+            for _ in range(25):
+                sig  = simulate_emg(g, u_scale)
+                feat = extract_features(sig)
+                X_new.append(feat)
+                y_new.append(g)
+        X_new = np.array(X_new)
+
+        raw = accuracy_score(y_new, ensemble.predict(X_new))
+
+        cal_scale = calibrate_user(u_scale)
+        X_cal = np.array([apply_calibration(v, cal_scale) for v in X_new])
+        cal   = accuracy_score(y_new, ensemble.predict(X_cal))
+
+        raw_accs.append(raw); cal_accs.append(cal)
+        print(f"  User {i+1} (scale={u_scale:.2f}×, est={cal_scale:.2f}×):"
+              f"  raw={raw:.1%}  calibrated={cal:.1%}  Δ={cal-raw:+.1%}")
+
+    print(f"\n  Mean raw:        {np.mean(raw_accs):.2%}")
+    print(f"  Mean calibrated: {np.mean(cal_accs):.2%}")
+    print(f"  Improvement:     {np.mean(cal_accs)-np.mean(raw_accs):+.2%}")
+
+    # ── Save ──────────────────────────────────────────
+    print("\n── Saving models ──")
+    joblib.dump({'model':ensemble,'scaler':scaler,'rf':rf_best}, 'emg_model_v2.pkl')
+
+    meta = {
+        'feature_names': FEATURE_NAMES,
+        'gestures': GESTURES,
+        'n_features': 15,
+        'window_size': WIN,
+        'sample_rate': SR,
+        'n_users_train': N_USERS-3,
+        'n_trials': N_TRIALS,
+        'gnb_test_acc': round(gnb_acc, 4),
+        'svm_test_acc': round(svm_acc, 4),
+        'rf_test_acc':  round(rf_acc,  4),
+        'ens_train_acc': round(ens_acc_tr, 4),
+        'ens_test_acc':  round(ens_acc_te, 4),
+        'cv_scores': {k: {'mean': round(v.mean(),4), 'std': round(v.std(),4)}
+                      for k,v in cv_scores.items()},
+        'best_rf_params': gs.best_params_,
+        'feature_importances': fi.to_dict(),
+        'calibration_improvement': round(float(np.mean(cal_accs)-np.mean(raw_accs)),4),
+        'confusion_matrix': {g:{g2:int(cm_df.loc[g,g2]) for g2 in GESTURES} for g in GESTURES}
+    }
+    with open('model_meta_v2.json','w') as f:
+        json.dump(meta, f, indent=2)
+
+    # GNB parameters for Pico W (extract from sklearn GaussianNB)
+    gnb_model = gnb.named_steps['m']
+    gnb_sc    = gnb.named_steps['sc']
+    pico_weights = {
+        'classes':   GESTURES,
+        'priors':    gnb_model.class_prior_.tolist(),
+        'means':     {GESTURES[i]: gnb_model.theta_[i].tolist() for i in range(len(GESTURES))},
+        'variances': {GESTURES[i]: gnb_model.var_[i].tolist()   for i in range(len(GESTURES))},
+        'scaler_mean': gnb_sc.mean_.tolist(),
+        'scaler_std':  gnb_sc.scale_.tolist(),
+        'feature_names': FEATURE_NAMES,
+        'accuracy': round(gnb_acc, 4),
+        'note': 'Copy GNB_MEANS / GNB_VARS into pico_main.py after dividing by scaler_std'
+    }
+    with open('feature_weights.json','w') as f:
+        json.dump(pico_weights, f, indent=2)
+
+    print("  Saved: emg_model_v2.pkl")
+    print("  Saved: model_meta_v2.json")
+    print("  Saved: feature_weights.json  ← paste into pico_main.py")
+    return ensemble, meta
 
 if __name__ == '__main__':
-    X, y, users = build_dataset()
-    print(f"Generated dataset with {len(X)} samples.")
+    model, meta = train_and_evaluate()
+    print(f"\n{'='*65}")
+    print(f"  Final ensemble test accuracy: {meta['ens_test_acc']*100:.2f}%")
+    print(f"  Calibration improvement:      {meta['calibration_improvement']*100:+.2f}%")
+    print(f"{'='*65}")
