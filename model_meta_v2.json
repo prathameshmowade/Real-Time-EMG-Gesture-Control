@@ -1,0 +1,133 @@
+{
+  "feature_names": [
+    "MAV",
+    "MMAV",
+    "RMS",
+    "VAR",
+    "STD",
+    "WL",
+    "AAC",
+    "DASDV",
+    "ZC",
+    "SSC",
+    "IEMG",
+    "HjorthActivity",
+    "HjorthMobility",
+    "HjorthComplexity",
+    "MYOP"
+  ],
+  "gestures": [
+    "FIST",
+    "OPEN_HAND",
+    "WRIST_UP",
+    "WRIST_DOWN",
+    "DOUBLE_FLEX",
+    "RELAX"
+  ],
+  "n_features": 15,
+  "window_size": 256,
+  "sample_rate": 500,
+  "n_users_train": 17,
+  "n_trials": 60,
+  "gnb_test_acc": 0.3343,
+  "svm_test_acc": 0.625,
+  "rf_test_acc": 0.6843,
+  "ens_train_acc": 0.5495,
+  "ens_test_acc": 0.5065,
+  "cv_scores": {
+    "Gaussian NB": {
+      "mean": 0.4069,
+      "std": 0.009
+    },
+    "K-NN (k=7)": {
+      "mean": 0.4855,
+      "std": 0.0082
+    },
+    "SVM (RBF, C=10)": {
+      "mean": 0.484,
+      "std": 0.0056
+    },
+    "Random Forest 200": {
+      "mean": 0.5162,
+      "std": 0.0091
+    },
+    "Gradient Boosting": {
+      "mean": 0.5113,
+      "std": 0.0111
+    }
+  },
+  "best_rf_params": {
+    "max_depth": 10,
+    "max_features": "sqrt",
+    "min_samples_leaf": 2,
+    "n_estimators": 100
+  },
+  "feature_importances": {
+    "HjorthActivity": 0.11538222992671933,
+    "MMAV": 0.11051572071559736,
+    "MAV": 0.10984591691354949,
+    "RMS": 0.10519366949816485,
+    "IEMG": 0.09670002089987978,
+    "VAR": 0.09272523519279005,
+    "STD": 0.09179014629342883,
+    "WL": 0.0825042595705854,
+    "DASDV": 0.06668085229565995,
+    "AAC": 0.05937673991197687,
+    "ZC": 0.024274154660588545,
+    "HjorthComplexity": 0.014882390999105979,
+    "HjorthMobility": 0.013498245730269838,
+    "SSC": 0.011946864011433805,
+    "MYOP": 0.00468355338024985
+  },
+  "calibration_improvement": -0.09,
+  "confusion_matrix": {
+    "FIST": {
+      "FIST": 100,
+      "OPEN_HAND": 60,
+      "WRIST_UP": 0,
+      "WRIST_DOWN": 0,
+      "DOUBLE_FLEX": 20,
+      "RELAX": 0
+    },
+    "OPEN_HAND": {
+      "FIST": 6,
+      "OPEN_HAND": 90,
+      "WRIST_UP": 42,
+      "WRIST_DOWN": 42,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "WRIST_UP": {
+      "FIST": 45,
+      "OPEN_HAND": 60,
+      "WRIST_UP": 23,
+      "WRIST_DOWN": 1,
+      "DOUBLE_FLEX": 51,
+      "RELAX": 0
+    },
+    "WRIST_DOWN": {
+      "FIST": 41,
+      "OPEN_HAND": 55,
+      "WRIST_UP": 43,
+      "WRIST_DOWN": 35,
+      "DOUBLE_FLEX": 6,
+      "RELAX": 0
+    },
+    "DOUBLE_FLEX": {
+      "FIST": 1,
+      "OPEN_HAND": 41,
+      "WRIST_UP": 10,
+      "WRIST_DOWN": 9,
+      "DOUBLE_FLEX": 119,
+      "RELAX": 0
+    },
+    "RELAX": {
+      "FIST": 0,
+      "OPEN_HAND": 0,
+      "WRIST_UP": 0,
+      "WRIST_DOWN": 0,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 180
+    }
+  }
+}
