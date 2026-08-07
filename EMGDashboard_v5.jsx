@@ -963,10 +963,23 @@ export default function EMGDashboard(){
 }
 export default function EMGDashboard() {
   const [tab, setTab] = useState("live");
+  const [sigBuffer, setSigBuffer] = useState([]);
+  const [rmsBuffer, setRmsBuffer] = useState([]);
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const sig = simulateEMG("FIST");
+      const feats = extractFeatures(sig);
+      setSigBuffer(b => [...b.slice(-180), {t: Date.now(), val: sig[sig.length-1]}]);
+      setRmsBuffer(b => [...b.slice(-60), {t: Date.now(), rms: feats.RMS}]);
+    }, 40);
+    return () => clearInterval(iv);
+  }, []);
+
   return (
     <div style={{minHeight:"100vh",background:C.bg,padding:24}}>
       <h1 style={{color:C.t}}>EMG Gesture Control Dashboard</h1>
-      <p style={{color:C.t3}}>Initial layout and tab navigation initialized.</p>
+      <div style={{marginTop:16}}>Live Signal Streaming Active.</div>
     </div>
   );
 }
