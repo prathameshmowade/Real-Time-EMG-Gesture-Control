@@ -963,13 +963,10 @@ export default function EMGDashboard(){
 }
 export default function EMGDashboard() {
   const [tab, setTab] = useState("live");
-  const [predGesture, setPredGesture] = useState("RELAX");
-  const [confidence, setConfidence] = useState(0.92);
-
   return (
     <div style={{minHeight:"100vh",background:C.bg,padding:24}}>
       <h1 style={{color:C.t}}>EMG Gesture Control Dashboard</h1>
-      <p>Predicted Gesture: {predGesture} ({Math.round(confidence * 100)}%)</p>
+      <p>Telemetry, Radar Analysis & Confusion Matrix Active</p>
     </div>
   );
 }
