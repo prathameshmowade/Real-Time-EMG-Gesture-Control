@@ -962,11 +962,11 @@ export default function EMGDashboard(){
   );
 }
 export default function EMGDashboard() {
-  const [tab, setTab] = useState("live");
+  const [tab, setTab] = useState("cal");
   return (
     <div style={{minHeight:"100vh",background:C.bg,padding:24}}>
       <h1 style={{color:C.t}}>EMG Gesture Control Dashboard</h1>
-      <p>Telemetry, Radar Analysis & Confusion Matrix Active</p>
+      <p>Interactive 6-Stage User Calibration Wizard Integrated</p>
     </div>
   );
 }
