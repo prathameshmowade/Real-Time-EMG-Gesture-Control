@@ -1,3 +1,4 @@
+// EMG Gesture Dashboard v4.9 (IoT Controls Integration)
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   AreaChart, Area, BarChart, Bar, RadarChart, Radar,
@@ -958,15 +959,6 @@ export default function EMGDashboard(){
         {tab==="log"        &&renderLog()}
         {tab==="analytics"  &&renderAnalytics()}
       </div>
-    </div>
-  );
-}
-export default function EMGDashboard() {
-  const [tab, setTab] = useState("cal");
-  return (
-    <div style={{minHeight:"100vh",background:C.bg,padding:24}}>
-      <h1 style={{color:C.t}}>EMG Gesture Control Dashboard</h1>
-      <p>Interactive 6-Stage User Calibration Wizard Integrated</p>
     </div>
   );
 }
