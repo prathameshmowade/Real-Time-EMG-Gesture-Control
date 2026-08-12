@@ -1,4 +1,3 @@
-// EMG Gesture Dashboard v4.9 (IoT Controls Integration)
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   AreaChart, Area, BarChart, Bar, RadarChart, Radar,
