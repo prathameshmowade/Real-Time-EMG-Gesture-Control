@@ -1,0 +1,141 @@
+{
+  "architecture": "DTSF-CNN (Dual-Path Temporal-Spectral Fusion CNN)",
+  "components": {
+    "path_a": "MultiScaleTemporalBlock (k=7, k=15, k=31)",
+    "path_b": "SpectralAttentionBlock (Welch PSD + SE)",
+    "fusion": "AdaptiveFusionGate (sigmoid-gated)",
+    "conditioning": "FiLM (15 handcrafted EMG features)"
+  },
+  "total_params": 258034,
+  "input_shapes": {
+    "raw_signal": [
+      1,
+      256
+    ],
+    "welch_psd": [
+      1,
+      33
+    ],
+    "handcrafted_features": [
+      15
+    ]
+  },
+  "hyperparameters": {
+    "temporal_branch_channels": 32,
+    "spectral_channels": 48,
+    "fused_dim": 64,
+    "dropout": 0.3,
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "scheduler": "CosineAnnealingLR",
+    "batch_size": 64,
+    "max_epochs": 80,
+    "early_stopping_patience": 15
+  },
+  "dataset": {
+    "n_users_train": 17,
+    "n_users_test": 3,
+    "n_trials_per_gesture": 60,
+    "total_samples": 7200,
+    "train_samples": 6120,
+    "test_samples": 1080
+  },
+  "cv_accuracy": {
+    "mean": 0.5632,
+    "std": 0.008,
+    "n_folds": 5
+  },
+  "test_accuracy": 0.2926,
+  "test_loss": 1.7087,
+  "per_class_f1": {
+    "FIST": 0.0,
+    "OPEN_HAND": 0.3352,
+    "WRIST_UP": 0.1507,
+    "WRIST_DOWN": 0.067,
+    "DOUBLE_FLEX": 0.0,
+    "RELAX": 1.0
+  },
+  "confusion_matrix": {
+    "FIST": {
+      "FIST": 0,
+      "OPEN_HAND": 38,
+      "WRIST_UP": 25,
+      "WRIST_DOWN": 116,
+      "DOUBLE_FLEX": 1,
+      "RELAX": 0
+    },
+    "OPEN_HAND": {
+      "FIST": 0,
+      "OPEN_HAND": 89,
+      "WRIST_UP": 25,
+      "WRIST_DOWN": 66,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "WRIST_UP": {
+      "FIST": 8,
+      "OPEN_HAND": 118,
+      "WRIST_UP": 33,
+      "WRIST_DOWN": 21,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "WRIST_DOWN": {
+      "FIST": 5,
+      "OPEN_HAND": 87,
+      "WRIST_UP": 74,
+      "WRIST_DOWN": 14,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "DOUBLE_FLEX": {
+      "FIST": 39,
+      "OPEN_HAND": 19,
+      "WRIST_UP": 101,
+      "WRIST_DOWN": 21,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "RELAX": {
+      "FIST": 0,
+      "OPEN_HAND": 0,
+      "WRIST_UP": 0,
+      "WRIST_DOWN": 0,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 180
+    }
+  },
+  "comparison_vs_ensemble": {
+    "ensemble_test_acc": 0.5065,
+    "cnn_test_acc": 0.2926,
+    "improvement_pct": -21.39
+  },
+  "training_time_seconds": 8127.7,
+  "device": "cpu",
+  "gestures": [
+    "FIST",
+    "OPEN_HAND",
+    "WRIST_UP",
+    "WRIST_DOWN",
+    "DOUBLE_FLEX",
+    "RELAX"
+  ],
+  "feature_names": [
+    "MAV",
+    "MMAV",
+    "RMS",
+    "VAR",
+    "STD",
+    "WL",
+    "AAC",
+    "DASDV",
+    "ZC",
+    "SSC",
+    "IEMG",
+    "HjorthActivity",
+    "HjorthMobility",
+    "HjorthComplexity",
+    "MYOP"
+  ]
+}

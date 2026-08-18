@@ -1,240 +1,393 @@
-# 🖐️ Real-Time EMG Gesture Recognition & Control System
+# 🖐️ Real-Time EMG Gesture Recognition & IoT Control System
 
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Scikit-Learn](https://img.shields.io/badge/scikit--learn-1.3+-F7931E?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
+[![Edge Microcontroller](https://img.shields.io/badge/RP2040-Pico%20W-C51A4A?logo=raspberrypi&logoColor=white)](https://www.raspberrypi.com/)
+[![PDF Report](https://img.shields.io/badge/ReportLab-PDF%20Report-red?logo=adobeacrobatreader&logoColor=white)](EMG_Gesture_Recognition_Project_Report.pdf)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-An intelligent, real-time Electromyography (EMG) gesture recognition and IoT control platform. The system acquires simulated/live raw biological muscle signals, extracts 15 time-domain features (Hudgins, Hjorth parameters, DASDV, MYOP), classifies human gestures via a weighted multi-model machine learning ensemble, and interfaces with smart IoT appliances with dynamic calibration and fatigue compensation.
+An intelligent, end-to-end cyber-physical platform for **Electromyography (EMG) biological muscle signal acquisition, feature engineering, multi-model machine learning, deep learning (DTSF-CNN), real-time telemetry, and smart home IoT appliance control**.
 
 ---
 
 ## 📌 Table of Contents
 
-- [Overview](#-overview)
-- [System Architecture](#-system-architecture)
-- [Key Features](#-key-features)
-- [Feature Extraction Pipeline](#-feature-extraction-pipeline)
-- [Machine Learning Ensemble](#-machine-learning-ensemble)
-- [Interactive Dashboard](#-interactive-dashboard)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Web Dashboard Installation](#web-dashboard-installation)
-  - [ML Training Pipeline](#ml-training-pipeline)
-- [Gesture Mapping & IoT Controls](#-gesture-mapping--iot-controls)
-- [Model Evaluation](#-model-evaluation)
-- [License](#-license)
+- [⚡ System Overview](#-system-overview)
+- [🏗️ End-to-End System Architecture](#️-end-to-end-system-architecture)
+- [🧬 Physiological Signal Modeling & Simulation](#-physiological-signal-modeling--simulation)
+- [🔬 15-Dimensional Feature Extraction Pipeline](#-15-dimensional-feature-extraction-pipeline)
+- [🧠 Classical Machine Learning Ensemble](#-classical-machine-learning-ensemble)
+- [🧬 Deep Learning Architecture: DTSF-CNN](#-deep-learning-architecture-dtsf-cnn)
+- [📊 Comprehensive Model Evaluation & Benchmarks](#-comprehensive-model-evaluation--benchmarks)
+- [🖥️ Interactive React Telemetry Dashboard](#️-interactive-react-telemetry-dashboard)
+- [🎮 Gesture Mapping & Smart Home IoT Controls](#-gesture-mapping--smart-home-iot-controls)
+- [📄 Automated PDF Report Generator](#-automated-pdf-report-generator)
+- [📁 Project Directory Structure](#-project-directory-structure)
+- [🚀 Quick Start & Installation](#-quick-start--installation)
+  - [1. Web Dashboard](#1-web-dashboard-installation)
+  - [2. Classical ML Training](#2-classical-ml-training-pipeline)
+  - [3. Deep Learning DTSF-CNN Training](#3-deep-learning-dtsf-cnn-pipeline)
+  - [4. Real-Time Streaming Inference Demo](#4-real-time-streaming-inference-demo)
+  - [5. PDF Report Generation](#5-pdf-report-generation)
+- [💡 Technical Insights, Limitations & Strategic Roadmap](#-technical-insights-limitations--strategic-roadmap)
+- [📄 License](#-license)
 
 ---
 
-## ⚡ Overview
+## ⚡ System Overview
 
-Electromyography (EMG) signals record the electrical activity produced by skeletal muscles during contraction. This project provides a complete end-to-end framework to:
-1. **Simulate & Filter Raw EMG**: Synthesize realistic multi-component biopotential signals (burst frequencies, electrode noise floor, baseline DC drift, and random motion artifacts).
-2. **Extract Comprehensive Time-Domain Features**: Calculate 15 distinct statistical, morphology, and frequency-domain surrogate metrics.
-3. **Classify Hand & Wrist Gestures**: Leverage ensemble learning across Random Forest, Support Vector Machines (SVM), Gradient Boosting, k-NN, and Gaussian Naive Bayes.
-4. **Real-Time Interactive Telemetry Dashboard**: Provide a responsive React dashboard with live oscilloscopes, radar charts, confusion matrices, gesture maps, and IoT home automation simulation.
-5. **Dynamic User Calibration**: Personalize recognition thresholds per user to mitigate muscle fatigue and electrode shift.
+Electromyography (EMG) records the minute electrical biopotentials produced by muscle fibers during voluntary contraction. This project provides a full-stack engineering solution:
+
+1. **Realistic Biosignal Simulation**: Synthesizes 500 Hz multi-component biological signals modeling motor unit firing frequencies, Gaussian amplitude modulation, dynamic muscle fatigue force decay, electrode baseline DC drift, and random motion artifacts.
+2. **15 Time-Domain & Morphological Features**: Extracts Hudgins time-domain features, Hjorth statistical parameters, DASDV, and Myopulse percentage rate.
+3. **Dual Machine Learning & Deep Learning Pipelines**:
+   - **Classical ML Ensemble (`train_model_v2.py`)**: Tuned Random Forest (200 trees), RBF SVM, Gradient Boosting, k-NN, and Gaussian Naive Bayes combined into a soft-voting ensemble with per-user dynamic calibration.
+   - **DTSF-CNN Deep Learning Model (`train_cnn_model.py`)**: A custom 258,034-parameter **Dual-Path Temporal-Spectral Fusion CNN** in PyTorch with multi-scale 1D convolutions ($k=7, 15, 31$), Welch PSD spectral attention with Squeeze-and-Excitation (SE), adaptive sigmoid gating, and FiLM conditioning.
+4. **Real-Time Interactive React Telemetry Dashboard (`EMGDashboard_v5.jsx`)**: Built with React 18 and Vite 5, featuring a 60 FPS live oscilloscope, polar feature radar charts, class confidence monitors, 6-step guided calibration wizard, and interactive smart home appliances.
+5. **Microcontroller Hardware Ready**: Exports Gaussian priors, class means, and variances (`feature_weights.json`) for instant deployment onto a **Raspberry Pi Pico W** running MicroPython.
+6. **Publication-Quality PDF Documentation**: Includes [`generate_pdf_report.py`](generate_pdf_report.py) to automatically compile an exhaustive technical report into [`EMG_Gesture_Recognition_Project_Report.pdf`](EMG_Gesture_Recognition_Project_Report.pdf).
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ End-to-End System Architecture
 
 ```
-   +-----------------------------------------------------------+
-   |                Surface EMG Signal Acquisition             |
-   |   (Sampling Rate: 500 Hz | Window: 256 samples / ~512ms)  |
-   +-----------------------------+-----------------------------+
-                                 |
-                                 v
-   +-----------------------------------------------------------+
-   |             Pre-Processing & Feature Extraction           |
-   |  • Amplitude & Power (MAV, MMAV, RMS, VAR, STD, IEMG)    |
-   |  • Waveform Complexity (WL, AAC, DASDV, ZC, SSC)         |
-   |  • Hjorth Parameters (Activity, Mobility, Complexity)     |
-   |  • Activation Thresholds (MYOP)                          |
-   +-----------------------------+-----------------------------+
-                                 |
-                                 v
-   +-----------------------------------------------------------+
-   |           Multi-Model Machine Learning Ensemble           |
-   |  • Random Forest (200 trees)   • Gradient Boosting        |
-   |  • Support Vector Machine (RBF) • Gaussian Naive Bayes     |
-   |  • k-Nearest Neighbors (k=7)   • Soft-Voting Ensemble     |
-   +-----------------------------+-----------------------------+
-                                 |
-                                 v
-   +-----------------------------------------------------------+
-   |         Real-Time Dashboard & IoT Device Controller        |
-   |  • Live Signal Oscilloscope    • Dynamic Calibration      |
-   |  • Feature Radar Visualizer    • Rejection Thresholding   |
-   |  • Appliance Trigger Matrix    • Latency Telemetry        |
-   +-----------------------------------------------------------+
+                      ┌──────────────────────────────────────────────┐
+                      │         Surface EMG Signal Acquisition       │
+                      │  Sampling Rate: 500 Hz | Window: 256 samples │
+                      └──────────────────────┬───────────────────────┘
+                                             │
+                      ┌──────────────────────┴───────────────────────┐
+                      │                                              │
+                      ▼                                              ▼
+       ┌──────────────────────────────┐              ┌──────────────────────────────┐
+       │   Time-Domain Extraction     │              │     Spectral Decomposition   │
+       │ • 15 Classical EMG Features  │              │ • Welch PSD (33 freq bins)   │
+       │   (Hudgins, Hjorth, DASDV)   │              │ • Squeeze-Excitation SE      │
+       └──────────────┬───────────────┘              └──────────────┬───────────────┘
+                      │                                             │
+                      ├──────────────────────┬──────────────────────┤
+                      │                      │                      │
+                      ▼                      ▼                      ▼
+       ┌────────────────────────┐┌────────────────────────┐┌────────────────────────┐
+       │  Classical ML Ensemble ││  DTSF-CNN Deep Model   ││ Microcontroller Target │
+       │ • Random Forest (200)  ││ • Multi-Scale 1D-CNN   ││ • Raspberry Pi Pico W  │
+       │ • Support Vector Mach. ││ • Adaptive Sigmoid Gate││ • Gaussian Naive Bayes │
+       │ • Gradient Boosting    ││ • FiLM Conditioning    ││ • 15 Fixed Features    │
+       └──────────────┬─────────┘└───────────┬────────────┘└───────────┬────────────┘
+                      │                      │                         │
+                      └──────────────────────┼─────────────────────────┘
+                                             │
+                                             ▼
+                      ┌──────────────────────────────────────────────┐
+                      │    Real-Time Dashboard & IoT Controller      │
+                      │ • Live 60 FPS Oscilloscope & Radar Visualizer│
+                      │ • Smart Home Appliance Trigger Matrix        │
+                      │ • Dynamic Per-User Calibration Wizard        │
+                      │ • Model Telemetry & Confusion Matrix         │
+                      └──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🌟 Key Features
+## 🧬 Physiological Signal Modeling & Simulation
 
-- **6 Gesture Classes**:
-  - `FIST` ✊ — Hand clenched firmly
-  - `OPEN_HAND` 🖐 — Full finger extension
-  - `WRIST_UP` ☝️ — Wrist dorsiflexion
-  - `WRIST_DOWN` 👇 — Wrist palmar flexion
-  - `DOUBLE_FLEX` 💪 — Simultaneous wrist and forearm contraction
-  - `RELAX` ✋ — Resting baseline
-- **15 Time-Domain EMG Features**: Combined Hudgins set, Hjorth parameters, DASDV, and Myopulse percentage.
-- **Adaptive Calibration Protocol**: 6-step guided calibration recording to adapt baseline RMS and per-gesture scales.
-- **Low-Latency Streaming**: Visualizes real-time biological streams at 60 FPS with configurable temporal smoothing.
-- **IoT Appliance Control**: Interactive smart home dashboard triggering Lights, Fans, Smart Doors, Motors, TV, and AC units based on gesture triggers.
-- **Explainability & Telemetry**: Feature importance charts, real-time confidence scores, and confusion matrix breakdowns.
+Operating at a sampling frequency $F_s = 500\text{ Hz}$ with a window of $N = 256\text{ samples}$ ($\approx 512\text{ ms}$ duration), the biopotential simulation mathematically captures continuous neuromuscular dynamics:
 
----
+$$\text{EMG}(t) = \left[ A \cdot S_{\text{user}} \cdot (1 - 0.2\phi) \cdot \left(1 + 0.14\sin(3.6\pi t) + 0.06\sin(0.8\pi t)\right) \cdot \mathcal{N}(0,1) \right] + 0.07 A \sin(2\pi f_c t) + \text{Noise} + \text{DC}$$
 
-## 🔬 Feature Extraction Pipeline
+- $A$: Baseline gesture amplitude factor.
+- $S_{\text{user}} \in [0.50, 1.60]$: Random user anatomical scaling coefficient.
+- $\phi \in [0, 0.30]$: Sustained contraction fatigue index causing up to 30% force drop.
+- $f_c$: Gesture-specific motor unit burst firing frequency.
+- **Motion Artifacts**: Injected as $0.35\text{ V}$ transient impulses with an 8% probability.
 
-| Feature | Category | Description | Formula / Principle |
-|:---|:---|:---|:---|
-| **MAV** | Amplitude | Mean Absolute Value | $\frac{1}{N}\sum |x_i|$ |
-| **MMAV** | Amplitude | Modified Mean Absolute Value | Weighted window prioritizing core samples |
-| **RMS** | Power | Root Mean Square | $\sqrt{\frac{1}{N}\sum x_i^2}$ |
-| **VAR** | Power | Variance of signal | $\sigma^2 = \frac{1}{N}\sum (x_i - \mu)^2$ |
-| **STD** | Power | Standard Deviation | $\sigma$ |
-| **IEMG** | Power | Integrated EMG | $\sum |x_i|$ |
-| **WL** | Morphology | Waveform Length | $\sum |x_i - x_{i-1}|$ |
-| **AAC** | Morphology | Average Amplitude Change | $\frac{1}{N}\sum |x_i - x_{i-1}|$ |
-| **DASDV** | Morphology | Difference Absolute Standard Deviation | $\sqrt{\frac{1}{N-1}\sum (x_{i+1} - x_i)^2}$ |
-| **ZC** | Frequency | Zero Crossing Count | Count of sign transitions exceeding noise threshold |
-| **SSC** | Frequency | Slope Sign Change | Count of turn points exceeding threshold |
-| **Hjorth Activity** | Spectral | Signal Variance / Power | $\text{Var}(x(t))$ |
-| **Hjorth Mobility** | Spectral | Mean Frequency Estimate | $\sqrt{\text{Var}(x'(t)) / \text{Var}(x(t))}$ |
-| **Hjorth Complexity** | Spectral | Spectral Bandwidth | $\text{Mobility}(x'(t)) / \text{Mobility}(x(t))$ |
-| **MYOP** | Threshold | Myopulse Percentage Rate | Fraction of samples exceeding $3 \times \text{noise}$ |
+### Gesture Parameter Reference Table
+
+| Gesture | Icon | Physiological Movement | Target Amp ($A$) | Burst Freq ($f_c$) | Noise Floor | Expected RMS |
+| :--- | :---: | :--- | :---: | :---: | :---: | :---: |
+| **`FIST`** | ✊ | Clenched fist contraction | $0.82\text{ V}$ | $155\text{ Hz}$ | $0.14$ | $0.520\text{ V}$ |
+| **`OPEN_HAND`** | 🖐 | Radial finger extension | $0.50\text{ V}$ | $102\text{ Hz}$ | $0.10$ | $0.310\text{ V}$ |
+| **`WRIST_UP`** | ☝️ | Wrist dorsiflexion | $0.67\text{ V}$ | $128\text{ Hz}$ | $0.12$ | $0.420\text{ V}$ |
+| **`WRIST_DOWN`** | 👇 | Wrist palmar flexion | $0.60\text{ V}$ | $113\text{ Hz}$ | $0.11$ | $0.370\text{ V}$ |
+| **`DOUBLE_FLEX`** | 💪 | Forearm + wrist co-contraction | $1.02\text{ V}$ | $178\text{ Hz}$ | $0.20$ | $0.670\text{ V}$ |
+| **`RELAX`** | ✋ | Resting muscular baseline | $0.04\text{ V}$ | $28\text{ Hz}$ | $0.02$ | $0.040\text{ V}$ |
 
 ---
 
-## 🧠 Machine Learning Ensemble
+## 🔬 15-Dimensional Feature Extraction Pipeline
 
-The pipeline trains and benchmarks 5 primary classifiers using `scikit-learn`:
+A complete set of 15 features is extracted per 256-sample window to capture amplitude, power, waveform morphology, rate dynamics, and spectral structure:
+
+| # | Feature Name | Category | Mathematical Formulation | Description |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | **MAV** | Amplitude | $\frac{1}{N}\sum_{i=1}^{N} \|x_i\|$ | Mean Absolute Value |
+| **2** | **MMAV** | Amplitude | $\frac{1}{N}\sum_{i=1}^{N} w_i \|x_i\|$ | Modified MAV (weighted center 50%) |
+| **3** | **RMS** | Power | $\sqrt{\frac{1}{N}\sum_{i=1}^{N} x_i^2}$ | Root Mean Square energy |
+| **4** | **VAR** | Power | $\frac{1}{N}\sum_{i=1}^{N} (x_i - \mu)^2$ | Signal variance ($\sigma^2$) |
+| **5** | **STD** | Power | $\sigma = \sqrt{\text{VAR}}$ | Standard deviation |
+| **6** | **IEMG** | Energy | $\sum_{i=1}^{N} \|x_i\|$ | Integrated EMG total area |
+| **7** | **WL** | Morphology | $\sum_{i=2}^{N} \|x_i - x_{i-1}\|$ | Waveform Length (excursion) |
+| **8** | **AAC** | Morphology | $\frac{1}{N-1}\sum_{i=2}^{N} \|x_i - x_{i-1}\|$ | Average Amplitude Change |
+| **9** | **DASDV** | Morphology | $\sqrt{\frac{1}{N-1}\sum_{i=2}^{N} (x_i - x_{i-1})^2}$ | Difference Absolute Standard Deviation Value |
+| **10** | **ZC** | Frequency | Count of sign changes with threshold $\epsilon = 0.01\text{ V}$ | Zero-Crossing count with hysteresis |
+| **11** | **SSC** | Frequency | Count of turns with threshold $\epsilon = 0.003\text{ V}$ | Slope Sign Change count |
+| **12** | **Hjorth Activity** | Spectral | $\text{VAR}(x(t))$ | Total signal power |
+| **13** | **Hjorth Mobility** | Spectral | $\sqrt{\text{VAR}(x'(t)) / \text{VAR}(x(t))}$ | Mean frequency estimate |
+| **14** | **Hjorth Complexity** | Spectral | $\text{Mobility}(x'(t)) / \text{Mobility}(x(t))$ | Spectral bandwidth / form factor |
+| **15** | **MYOP** | Threshold | $\frac{1}{N}\sum_{i=1}^{N} \mathbb{I}(\|x_i\| > 3\sigma)$ | Myopulse Percentage Rate |
+
+---
+
+## 🧠 Classical Machine Learning Ensemble
+
+The classical ML pipeline (`train_model_v2.py`) trains and benchmarks 5 primary classifiers using `scikit-learn`:
+
+- **Dataset Scale**: 20 subjects $\times$ 6 gestures $\times$ 60 trials = **7,200 samples**.
+- **Subject-Independent Split**: 17 training users (6,120 samples) and 3 unseen test users (1,080 samples).
+- **Validation**: 5-Fold Stratified Cross-Validation with `GridSearchCV` on Random Forest.
+- **Dynamic Per-User Calibration**: Estimates subject scaling ratio $S_{\text{cal}} = \text{median}(\text{RMS}_{\text{obs}} / \text{RMS}_{\text{exp}})$ to normalize feature vectors during runtime.
+- **Embedded Export**: Produces `feature_weights.json` with class priors, means, and variances ready for MicroPython deployment on Raspberry Pi Pico W.
 
 ```python
-# Model Evaluation Pipeline (5-Fold Stratified Cross-Validation)
-VotingClassifier(
+# Weighted Soft-Voting Meta-Ensemble
+ensemble = VotingClassifier(
     estimators=[
-        ('rf',  RandomForestClassifier(n_estimators=200, max_depth=10)),
-        ('gb',  GradientBoostingClassifier(n_estimators=100, learning_rate=0.1)),
-        ('svm', Pipeline([('scaler', StandardScaler()), ('svc', SVC(probability=True, C=10, gamma='scale'))])),
-        ('knn', Pipeline([('scaler', StandardScaler()), ('knn', KNeighborsClassifier(n_neighbors=7))])),
-        ('gnb', GaussianNB())
+        ('gnb', Pipeline([('scaler', StandardScaler()), ('clf', GaussianNB())])),
+        ('svm', Pipeline([('scaler', StandardScaler()), ('clf', SVC(probability=True, C=10, gamma='scale'))])),
+        ('rf',  RandomForestClassifier(n_estimators=200, max_depth=10, min_samples_leaf=2, max_features='sqrt'))
     ],
-    voting='soft'
+    voting='soft',
+    weights=[gnb_test_acc, svm_test_acc, rf_test_acc]
 )
 ```
 
 ---
 
-## 📊 Interactive Dashboard
+## 🧬 Deep Learning Architecture: DTSF-CNN
 
-The dashboard (`EMGDashboard_v5.jsx`) features:
-1. **Live Signal Scope**: Oscilloscope displaying real-time raw biopotentials and moving RMS energy envelopes.
-2. **Predicted State & Confidence Meter**: High-visibility gesture cards with real-time class probability distribution.
-3. **Feature Radar & Metric Gauges**: Polar radar displaying normalized feature vectors alongside live scalar readings.
-4. **Smart Appliance Control Grid**: Interactive state toggles for home automation devices triggered by recognized gestures.
-5. **Interactive Calibration Wizard**: Guided 6-gesture calibration workflow with baseline drift subtraction.
-6. **Model Telemetry & Confusion Matrix**: Visual accuracy charts, cross-validation metrics, and feature importances.
+The **Dual-Path Temporal-Spectral Fusion CNN (DTSF-CNN)** (`train_cnn_model.py`) is implemented in PyTorch with **258,034 trainable parameters**:
+
+```
+  Raw EMG Signal (256 samples @ 500 Hz)
+         │
+    ┌────┴──────────────────────────┐
+    │                               │
+    ▼                               ▼
+ ═════════════════════════    ═════════════════════════
+ PATH A: Multi-Scale Temporal PATH B: Spectral (Welch PSD)
+ ═════════════════════════    ═════════════════════════
+ ┌───────────────────────┐    ┌───────────────────────┐
+ │ Conv1D k=7  (14ms)    │    │ Welch PSD (33 bins)   │
+ │ Conv1D k=15 (30ms)    │    │ Conv1D (k=5)          │
+ │ Conv1D k=31 (62ms)    │    │ Conv1D (k=11)         │
+ └──────────┬────────────┘    │ Squeeze-Excitation SE │
+            │ Concat          └───────────┬───────────┘
+            ▼                             ▼
+ ┌───────────────────────┐    ┌───────────────────────┐
+ │ 2× ResBlock1D + GAP   │    │ 1× ResBlock1D + GAP   │
+ └──────────┬────────────┘    └───────────┬───────────┘
+            │ (96-dim)                    │ (48-dim)
+            └──────────────┬──────────────┘
+                           ▼
+            ┌─────────────────────────────┐
+            │   Adaptive Fusion Gate      │
+            │   g = σ(W · [h_t, h_s])     │
+            │   h = g⊙h_t + (1-g)⊙h_s     │
+            └──────────────┬──────────────┘
+                           │ (64-dim)
+                           ▼
+            ┌─────────────────────────────┐
+            │   FiLM Conditioning Layer   │
+            │   (15 Handcrafted Features) │
+            │   h_out = γ(f) ⊙ h + β(f)   │
+            └──────────────┬──────────────┘
+                           │ (64-dim)
+                           ▼
+            ┌─────────────────────────────┐
+            │ Dropout(0.3) ──► Linear(6)  │
+            └─────────────────────────────┘
+```
+
+### Key Architectural Highlights
+
+1. **Multi-Scale Temporal Convolutions (Path A)**: Parallel 1D kernels ($k=7$ for 14ms motor twitches, $k=15$ for 30ms contraction onsets, $k=31$ for 62ms sustained envelopes) followed by residual 1D blocks and Global Average Pooling (96-dim).
+2. **Spectral Attention Decomposition (Path B)**: 33-bin Welch PSD processed via Conv1D with **Squeeze-and-Excitation (SE)** channel recalibration (48-dim).
+3. **Adaptive Sigmoid Fusion Gate**: Dynamically computes gate coefficient $g = \sigma(W_g \cdot [h_t, h_s] + b_g)$ to balance temporal vs. spectral modalities under varying signal-to-noise ratios.
+4. **FiLM Conditioning Layer**: Mathematically injects the 15 handcrafted time-domain features as an affine modulation $h_{\text{out}} = \gamma(f) \odot h + \beta(f)$.
+5. **Training Protocol**: AdamW ($\text{LR}=10^{-3}$, $\text{Weight Decay}=10^{-4}$), Cosine Annealing learning rate schedule, and Early Stopping with patience 15.
 
 ---
 
-## 📁 Project Structure
+## 📊 Comprehensive Model Evaluation & Benchmarks
+
+### 1. Overall Accuracy Comparison
+
+| Model Architecture | Model Family | Parameters / Trees | 5-Fold CV Accuracy | Test Accuracy (Unseen Users) |
+| :--- | :--- | :---: | :---: | :---: |
+| **DTSF-CNN (Ours)** | **Deep Learning (PyTorch)** | **258,034** | **56.32% ± 0.80%** 🏆 | **29.26%** |
+| **Random Forest (Tuned)** | Ensemble ML | 200 trees (`depth=10`) | **51.62% ± 0.91%** | **68.43%** |
+| **Gradient Boosting** | Ensemble ML | 150 estimators | **51.13% ± 1.11%** | — |
+| **Weighted Soft Voting Ensemble** | Meta-Ensemble | RF + SVM + GNB | **54.95%** (Train) | **50.65%** |
+| **k-Nearest Neighbors ($k=7$)** | Classical ML | Standardized | **48.55% ± 0.82%** | — |
+| **Support Vector Machine (RBF)** | Classical ML | $C=10, \gamma=\text{'scale'}$ | **48.40% ± 0.56%** | **62.50%** |
+| **Gaussian Naive Bayes** | Classical ML | Pico W Target | **40.69% ± 0.90%** | **33.43%** |
+
+### 2. Feature Importance Ranking (Random Forest)
+
+```
+HjorthActivity   ████████████████ 0.1154 (11.54%)
+MMAV             ███████████████  0.1105 (11.05%)
+MAV              ███████████████  0.1098 (10.98%)
+RMS              ██████████████   0.1052 (10.52%)
+IEMG             █████████████    0.0967 (9.67%)
+VAR              ████████████     0.0927 (9.27%)
+STD              ████████████     0.0918 (9.18%)
+WL               ███████████      0.0825 (8.25%)
+DASDV            █████████        0.0667 (6.67%)
+AAC              ████████         0.0594 (5.94%)
+ZC               ███              0.0243 (2.43%)
+HjorthComplexity ██               0.0149 (1.49%)
+HjorthMobility   █                0.0135 (1.35%)
+SSC              █                0.0119 (1.19%)
+MYOP                              0.0047 (0.47%)
+```
+
+### 3. Classification Insights
+- **`RELAX` Accuracy**: **100% precision & 100% recall** across all models without a single misclassification.
+- **Inference Latency**:
+  - Python DTSF-CNN Forward Pass: **~0.15 - 0.20 ms** per window.
+  - Browser In-Memory Ensemble: **~0.05 ms** per window.
+  - Real-time 500 Hz streaming threshold (< 5 ms budget) is completely satisfied.
+
+---
+
+## 🖥️ Interactive React Telemetry Dashboard
+
+The dashboard (`EMGDashboard_v5.jsx`) is built with React 18, Vite 5, and Recharts:
+
+1. **60 FPS Live Signal Oscilloscope**: Displays real-time raw biopotential oscillations alongside moving RMS energy envelopes.
+2. **Gesture State & Confidence Gauges**: High-visibility prediction cards with real-time class probability breakdown.
+3. **Polar Feature Radar**: Normalized 15-feature radar chart dynamically reacting to muscle contraction force.
+4. **Adaptive 6-Step Calibration Wizard**: Guided calibration capturing resting DC noise and active gesture amplitudes to generate personal scaling multipliers.
+5. **Rolling Temporal Smoother**: 5-frame moving average probability filter with a **0.52 confidence rejection threshold** to eliminate transitional jitter.
+
+---
+
+## 🎮 Gesture Mapping & Smart Home IoT Controls
+
+| Smart Appliance | Action ON | Action OFF | Hardware Interface / Telemetry |
+| :--- | :---: | :---: | :--- |
+| 💡 **Smart Light** | `FIST` ✊ | `OPEN_HAND` 🖐 | Binary relay GPIO toggle |
+| 🌀 **Ceiling Fan** | `WRIST_UP` ☝️ | `WRIST_DOWN` 👇 | PWM Speed controller (0 → 1200 RPM) |
+| 🚪 **Smart Door** | `WRIST_DOWN` 👇 | `RELAX` ✋ | Solenoid strike lock / unlock |
+| ⚙️ **Stepper Motor** | `DOUBLE_FLEX` 💪 | `OPEN_HAND` 🖐 | Bi-directional robotic actuator |
+| 📺 **Smart TV** | `OPEN_HAND` 🖐 | `RELAX` ✋ | IR / MQTT power state toggle |
+| ❄️ **AC Unit** | `DOUBLE_FLEX` 💪 | `WRIST_UP` ☝️ | Thermostat cooling compressor toggle |
+
+---
+
+## 📄 Automated PDF Report Generator
+
+An automated PDF compilation script is included to generate publication-quality documentation:
+
+- **Script**: [`generate_pdf_report.py`](generate_pdf_report.py)
+- **Output PDF**: [`EMG_Gesture_Recognition_Project_Report.pdf`](EMG_Gesture_Recognition_Project_Report.pdf)
+- **Features**: Generates running headers, footers with `"Page X of Y"` page numbers, mathematical equations, formatted tables, and embedded training visualization figures.
+
+```bash
+# Generate / Update the PDF Report
+python generate_pdf_report.py
+```
+
+---
+
+## 📁 Project Directory Structure
 
 ```
 Real-Time-EMG-Gesture-Control/
 ├── src/
-│   ├── EMGDashboard_v5.jsx      # Core React interactive dashboard component
-│   └── main.jsx                 # React DOM mount entry point
-├── index.html                   # HTML5 document template & Google fonts
-├── vite.config.js               # Vite build configuration
-├── package.json                 # Project dependencies & scripts
-├── train_model_v2.py            # Python ML training & feature extraction pipeline
-├── emg_model_v2.pkl             # Serialized trained model weights
-├── model_meta_v2.json           # Model metadata, CV benchmarks & confusion matrix
-├── feature_weights.json         # Feature importance weights & normalization bounds
-├── .gitignore                   # Ignored files (node_modules, caches, builds)
-└── README.md                    # Project documentation
+│   ├── EMGDashboard_v5.jsx                 # Core React interactive dashboard
+│   └── main.jsx                            # React DOM entry point
+├── index.html                              # HTML5 document & Google fonts
+├── vite.config.js                          # Vite build configuration
+├── package.json                            # Node.js dependencies & scripts
+├── train_model_v2.py                       # Classical ML pipeline & feature extraction
+├── train_cnn_model.py                      # PyTorch DTSF-CNN deep learning pipeline
+├── demo_cnn_inference.py                   # Real-time streaming inference demonstration
+├── generate_pdf_report.py                  # ReportLab PDF report generation script
+├── EMG_Gesture_Recognition_Project_Report.pdf # Generated PDF report artifact
+├── emg_model_v2.pkl                        # Serialized trained classical ensemble weights
+├── cnn_model.pth                           # Serialized trained DTSF-CNN PyTorch weights
+├── model_meta_v2.json                      # Classical ML metadata, CV benchmarks & CM
+├── cnn_meta.json                           # DTSF-CNN metadata & evaluation metrics
+├── cnn_results.png                         # Multi-panel visualization curves & CM
+├── feature_weights.json                    # RP2040 Pico W Gaussian priors & parameters
+├── .gitignore                              # Git ignore rules
+└── README.md                               # Project documentation
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start & Installation
 
 ### Prerequisites
+- **Node.js**: v18.0+ & **npm**: v9.0+
+- **Python**: v3.9+ (with PyTorch, scikit-learn, ReportLab)
 
-- **Node.js**: v18.0 or higher
-- **npm**: v9.0 or higher
-- **Python**: v3.9 or higher (for retraining models)
-
-### Web Dashboard Installation
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/prathameshmowade/Real-Time-EMG-Gesture-Control.git
-   cd Real-Time-EMG-Gesture-Control
-   ```
-
-2. **Install frontend dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server**:
-   ```bash
-   npm run dev
-   ```
-
-4. **Open in browser**:
-   Navigate to `http://localhost:5173/` to view the live dashboard.
-
-### ML Training Pipeline
-
-To re-run the dataset generation, feature extraction, and ensemble model training:
-
+### 1. Web Dashboard Installation
 ```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Install frontend dependencies
+npm install
 
-# Install required packages
-pip install numpy pandas scikit-learn joblib
+# Start the Vite development server
+npm run dev
+# Dashboard available at: http://localhost:3000/
+```
 
-# Run training pipeline
+### 2. Classical ML Training Pipeline
+```bash
+# Train Random Forest, SVM, Gradient Boosting & export Pico weights
 python train_model_v2.py
 ```
 
+### 3. Deep Learning DTSF-CNN Pipeline
+```bash
+# Train PyTorch DTSF-CNN with Welch PSD & FiLM conditioning
+python train_cnn_model.py
+```
+
+### 4. Real-Time Streaming Inference Demo
+```bash
+# Run real-time streaming inference test in terminal
+python demo_cnn_inference.py
+```
+
+### 5. PDF Report Generation
+```bash
+# Build the comprehensive PDF report
+python generate_pdf_report.py
+```
+
 ---
 
-## 🎮 Gesture Mapping & IoT Controls
+## 💡 Technical Insights, Limitations & Strategic Roadmap
 
-| Device | Action ON | Action OFF | Status Indicator |
-|:---|:---|:---|:---:|
-| 💡 **Smart Light** | `FIST` ✊ | `OPEN_HAND` 🖐 | Active / Inactive |
-| 🌀 **Ceiling Fan** | `WRIST_UP` ☝️ | `WRIST_DOWN` 👇 | RPM Speed Gauge |
-| 🚪 **Smart Door** | `WRIST_DOWN` 👇 | `RELAX` ✋ | Locked / Unlocked |
-| ⚙️ **Stepper Motor** | `DOUBLE_FLEX` 💪 | `OPEN_HAND` 🖐 | Running / Stopped |
-| 📺 **Smart TV** | `OPEN_HAND` 🖐 | `RELAX` ✋ | On / Off |
-| ❄️ **AC Unit** | `DOUBLE_FLEX` 💪 | `WRIST_UP` ☝️ | Cooling / Standby |
+### 🌟 Technical Insights
+1. **Resting State Isolation**: `RELAX` baseline achieves **100% precision & recall** across all models.
+2. **Single-Channel Muscle Crosstalk**: Differentiating active contractions (`FIST`, `WRIST_UP`, `WRIST_DOWN`) from a single electrode site exhibits physiological crosstalk, making hand-crafted statistical features (Random Forest at 68.43%) more resilient on small datasets than deep models.
 
----
-
-## 📈 Model Evaluation
-
-- **Cross-Validation**: 5-Fold Stratified Cross-Validation on multi-user dataset.
-- **Top Predictive Features**: Hjorth Activity (11.5%), MMAV (11.1%), MAV (11.0%), RMS (10.5%), IEMG (9.7%).
-- **Inference Latency**: < 15ms per 256-sample window.
+### 🚀 Strategic Roadmap
+- **Multi-Channel sEMG Expansion**: Integrate 4-channel or 8-channel electrode arrays (e.g. Myo Armband style) to isolate individual forearm muscle bellies.
+- **Sequence Deep Learning**: Implement **CNN-BiLSTM** and **InceptionTime** models to capture sequential onset and contraction transition dynamics.
+- **TinyML On-Chip Quantization**: Quantize models to 8-bit integers (INT8) using TensorFlow Lite Micro / ONNX for direct onboard inference on Raspberry Pi Pico W.
+- **Physical Sensor Streaming**: Connect physical MyoWare / ADS1115 EMG sensors to the web dashboard via WebSerial / WebSockets.
 
 ---
 
 ## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is open-source and available under the [MIT License](LICENSE).
