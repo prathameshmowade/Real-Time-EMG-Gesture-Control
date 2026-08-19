@@ -1,18 +1,24 @@
 /*
  ======================================================================
-  RECEIVER END: ESP32 DEVKIT V1 (WIRELESS BASE STATION & ACTUATOR)
-  Receives real-time EMG biopotential packets & hand gesture commands
-  wirelessly from the Raspberry Pi Pico W over high-speed UDP WiFi.
-  Controls bionic robotic hand servos and streams to PC / Web Dashboard!
+  RECEIVER END: ESP32 DEVKIT V1 (1 LED LIGHT + 2 SERVO MOTORS)
+  Receives gesture commands wirelessly from the Pico W transmitter
+  over UDP WiFi and controls 1 LED Light and 2 Servo Motors in real-time!
  ======================================================================
- Optional Hardware:
-   * 5x SG90 / MG996R Servos for Robotic Hand / Fingers:
-     - Servo Thumb  -> GPIO 13
-     - Servo Index  -> GPIO 12
-     - Servo Middle -> GPIO 14
-     - Servo Ring   -> GPIO 27
-     - Servo Pinky  -> GPIO 26
-   * Status LED     -> GPIO 2 (Onboard Blue LED)
+ Hardware Wiring for Receiver End:
+   * 1x LED Light:
+     - Long Leg (+) (Anode)   ->  GPIO 4 (with 220 Ohm Resistor)
+     - Short Leg (-) (Cathode)->  GND
+     (Or use Onboard Blue LED ->  GPIO 2)
+
+   * 2x Servo Motors (SG90 / MG996R):
+     - Servo 1 (Gripper / Hand):
+       * Signal Wire (Orange/Yellow) ->  GPIO 13
+       * Power (+)   (Red)           ->  5V (VIN or External 5V)
+       * Ground (-)  (Brown/Black)   ->  GND
+     - Servo 2 (Wrist / Arm Rotation):
+       * Signal Wire (Orange/Yellow) ->  GPIO 12
+       * Power (+)   (Red)           ->  5V (VIN or External 5V)
+       * Ground (-)  (Brown/Black)   ->  GND
  ======================================================================
 */
 
@@ -20,70 +26,60 @@
 #include <WiFiUdp.h>
 #include <ESP32Servo.h>
 
-// --- 1. CONFIGURATION ---
-const char* AP_SSID = "ESP32_EMG_GATEWAY";   // Standalone WiFi AP created by ESP32
-const char* AP_PASS = "emgpassword123";      // Password (min 8 chars)
+// --- 1. NETWORK CONFIGURATION ---
+const char* AP_SSID = "ESP32_EMG_GATEWAY";   // Standalone WiFi Access Point
+const char* AP_PASS = "emgpassword123";      // Password
 const int UDP_PORT = 4210;
 
 WiFiUDP udp;
 char packetBuffer[255];
 
-// --- 2. SERVO MOTORS SETUP ---
-Servo servoThumb;
-Servo servoIndex;
-Servo servoMiddle;
-Servo servoRing;
-Servo servoPinky;
+// --- 2. HARDWARE PIN DEFINITIONS ---
+const int PIN_LED     = 4;    // External LED Light (also mirrors to GPIO 2)
+const int PIN_LED_ONB = 2;    // Onboard Blue LED
+const int PIN_SERVO_1 = 13;   // Servo 1: Gripper / Hand Open-Close
+const int PIN_SERVO_2 = 12;   // Servo 2: Wrist Flexion / Arm Angle
 
-const int PIN_THUMB  = 13;
-const int PIN_INDEX  = 12;
-const int PIN_MIDDLE = 14;
-const int PIN_RING   = 27;
-const int PIN_PINKY  = 26;
-const int LED_PIN    = 2;
+Servo servo1_Gripper;
+Servo servo2_Wrist;
 
 void setup() {
   Serial.begin(115200);
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
 
-  Serial.println("\n=======================================================");
-  Serial.println("   RECEIVER: ESP32 DEVKIT V1 EMG BASE STATION");
-  Serial.println("=======================================================");
+  // 1. Initialize LED Light Pins
+  pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_LED_ONB, OUTPUT);
+  digitalWrite(PIN_LED, LOW);
+  digitalWrite(PIN_LED_ONB, LOW);
 
-  // 1. Initialize Servos (50 Hz standard PWM)
+  // 2. Initialize 2x Servo Motors
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1);
-  ESP32PWM::allocateTimer(2);
-  ESP32PWM::allocateTimer(3);
 
-  servoThumb.setPeriodHertz(50);
-  servoIndex.setPeriodHertz(50);
-  servoMiddle.setPeriodHertz(50);
-  servoRing.setPeriodHertz(50);
-  servoPinky.setPeriodHertz(50);
+  servo1_Gripper.setPeriodHertz(50); // Standard 50 Hz PWM
+  servo2_Wrist.setPeriodHertz(50);
 
-  servoThumb.attach(PIN_THUMB, 500, 2400);
-  servoIndex.attach(PIN_INDEX, 500, 2400);
-  servoMiddle.attach(PIN_MIDDLE, 500, 2400);
-  servoRing.attach(PIN_RING, 500, 2400);
-  servoPinky.attach(PIN_PINKY, 500, 2400);
+  servo1_Gripper.attach(PIN_SERVO_1, 500, 2400);
+  servo2_Wrist.attach(PIN_SERVO_2, 500, 2400);
 
-  // Set initial relaxed position (Fingers Open)
-  setRoboticHand(0, 0, 0, 0, 0);
+  // Initial Relaxed State: Gripper Open (0 deg), Wrist Center (90 deg)
+  servo1_Gripper.write(0);
+  servo2_Wrist.write(90);
 
-  // 2. Start WiFi in Access Point (AP) mode (No router required!)
-  Serial.print("[*] Starting Standalone Access Point: ");
-  Serial.println(AP_SSID);
+  Serial.println("\n=======================================================");
+  Serial.println("   RECEIVER: ESP32 (1 LED + 2 SERVO MOTORS) READY");
+  Serial.println("=======================================================");
+
+  // 3. Start Standalone Access Point (No Router Required)
   WiFi.softAP(AP_SSID, AP_PASS);
-
-  IPAddress myIP = WiFi.softAPIP();
+  Serial.print("[+] WiFi AP Started: ");
+  Serial.println(AP_SSID);
   Serial.print("[+] ESP32 Gateway IP: ");
-  Serial.println(myIP);
+  Serial.println(WiFi.softAPIP());
 
-  // 3. Start UDP Listener
+  // 4. Start High-Speed UDP Listener
   udp.begin(UDP_PORT);
-  Serial.printf("[+] Listening for Pico W packets on UDP port: %d\n", UDP_PORT);
+  Serial.printf("[+] Listening on UDP port %d for Pico W packets...\n", UDP_PORT);
   Serial.println("=======================================================\n");
 }
 
@@ -91,7 +87,6 @@ void loop() {
   int packetSize = udp.parsePacket();
 
   if (packetSize) {
-    digitalWrite(LED_PIN, HIGH); // Flash LED on packet received
     int len = udp.read(packetBuffer, 254);
     if (len > 0) {
       packetBuffer[len] = '\0';
@@ -100,7 +95,7 @@ void loop() {
     String msg = String(packetBuffer);
     msg.trim();
 
-    // Parse CSV format: "GESTURE,RMS,VOLTAGE"
+    // Parse packet: "GESTURE,RMS,VOLTAGE"
     int firstComma = msg.indexOf(',');
     int secondComma = msg.indexOf(',', firstComma + 1);
 
@@ -118,42 +113,59 @@ void loop() {
       gesture = msg;
     }
 
-    // 1. Actuate Robotic Hand Servos based on Gesture
-    actuateServos(gesture);
+    // 1. Actuate 1 LED Light and 2 Servo Motors
+    actuateHardware(gesture);
 
-    // 2. Stream formatted telemetry to PC / Web Dashboard over USB Serial
-    Serial.printf("[PICO_W -> ESP32] Gesture: %-12s | RMS: %-6.3f V | Raw: %-6.3f V\n", 
-                  gesture.c_str(), rms, voltage);
-
-    digitalWrite(LED_PIN, LOW);
+    // 2. Stream Live Telemetry to PC over USB Serial
+    Serial.printf("[PICO_W -> ESP32] Gesture: %-12s | RMS: %-5.3f V | LED: %s | S1: %3d deg | S2: %3d deg\n",
+                  gesture.c_str(), rms, 
+                  (gesture == "FIST" || gesture == "DOUBLE_PULSE") ? "ON " : "OFF",
+                  servo1_Gripper.read(), servo2_Wrist.read());
   }
 }
 
-// Actuates 5-finger servos based on simplified basic gestures
-void actuateServos(String gesture) {
+// Controls 1 LED Light & 2 Servo Motors based on Hand Gesture
+void actuateHardware(String gesture) {
   if (gesture == "FIST") {
-    // All fingers tightly closed (180 degrees)
-    setRoboticHand(180, 180, 180, 180, 180);
-  } 
-  else if (gesture == "OPEN_HAND") {
-    // All fingers fully extended open (0 degrees)
-    setRoboticHand(0, 0, 0, 0, 0);
-  } 
-  else if (gesture == "DOUBLE_PULSE") {
-    // Wave action / Point gesture
-    setRoboticHand(180, 0, 180, 180, 180);
-    delay(100);
-  } 
-  else { // RELAX
-    // Resting position (25 degrees)
-    setRoboticHand(25, 25, 25, 25, 25);
+    // Squeeze / Power Grip:
+    // * LED Light: ON
+    // * Servo 1 (Gripper): 180° (Fully Clamped / Closed)
+    // * Servo 2 (Wrist):   45°  (Flexed)
+    digitalWrite(PIN_LED, HIGH);
+    digitalWrite(PIN_LED_ONB, HIGH);
+    servo1_Gripper.write(180);
+    servo2_Wrist.write(45);
   }
-}
-
-void setRoboticHand(int t, int i, int m, int r, int p) {
-  servoThumb.write(t);
-  servoIndex.write(i);
-  servoMiddle.write(m);
-  servoRing.write(r);
-  servoPinky.write(p);
+  else if (gesture == "OPEN_HAND") {
+    // Stretch Fingers:
+    // * LED Light: OFF
+    // * Servo 1 (Gripper): 0°   (Fully Open)
+    // * Servo 2 (Wrist):   135° (Extended Up)
+    digitalWrite(PIN_LED, LOW);
+    digitalWrite(PIN_LED_ONB, LOW);
+    servo1_Gripper.write(0);
+    servo2_Wrist.write(135);
+  }
+  else if (gesture == "DOUBLE_PULSE") {
+    // Quick Double Pulse Action:
+    // * LED Light: Double Flash
+    // * Servo 1 & 2: Rapid Toggle Wave
+    digitalWrite(PIN_LED, HIGH);
+    digitalWrite(PIN_LED_ONB, HIGH);
+    servo1_Gripper.write(90);
+    servo2_Wrist.write(180);
+    delay(80);
+    digitalWrite(PIN_LED, LOW);
+    digitalWrite(PIN_LED_ONB, LOW);
+  }
+  else { // RELAX
+    // Resting State:
+    // * LED Light: OFF
+    // * Servo 1 (Gripper): 15° (Neutral Relaxed Open)
+    // * Servo 2 (Wrist):   90° (Straight Center)
+    digitalWrite(PIN_LED, LOW);
+    digitalWrite(PIN_LED_ONB, LOW);
+    servo1_Gripper.write(15);
+    servo2_Wrist.write(90);
+  }
 }
