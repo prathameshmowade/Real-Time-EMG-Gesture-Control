@@ -54,31 +54,51 @@ def connect_wifi():
         led.off()
         return False
 
-# --- 3. ON-CHIP GESTURE CLASSIFIER ---
-GESTURES = ['RELAX', 'FIST', 'OPEN_HAND', 'WRIST_FLEX', 'WRIST_EXT']
+# --- 3. ROBUST BASIC MOVEMENT CLASSIFIER (EMG SENSOR V3.0) ---
+# Simplified to 3 core unmistakable muscle states + double-pulse trigger
+GESTURES = ['RELAX', 'FIST', 'OPEN_HAND', 'DOUBLE_PULSE']
 
-def classify_window(buffer):
-    """Computes RMS energy and slope changes in ~0.5 ms."""
+# State tracking for double-pulse detection
+last_peak_time = 0
+pulse_count = 0
+
+def classify_basic_movement(buffer, baseline_noise):
+    """
+    Robust Envelope & Energy Classifier tailored for single-channel EMG V3.0.
+    Eliminates complex multi-muscle crosstalk and focuses on clean, distinct gestures.
+    """
+    global last_peak_time, pulse_count
     N = len(buffer)
     if N == 0:
         return 'RELAX', 0.0
 
-    sum_sq = sum(x * x for x in buffer)
-    rms = math.sqrt(sum_sq / N)
-    
-    # Fast decision thresholds tuned for EMG Sensor V3.0
-    if rms < 0.08:
-        gesture = 'RELAX'
-    elif rms > 0.65:
-        gesture = 'FIST'
-    elif rms > 0.40:
-        gesture = 'WRIST_FLEX'
-    elif rms > 0.20:
-        gesture = 'OPEN_HAND'
-    else:
-        gesture = 'WRIST_EXT'
+    # Calculate Root Mean Square (RMS) & Rectified Mean (MAV)
+    mav = sum(abs(x) for x in buffer) / N
+    rms = math.sqrt(sum(x * x for x in buffer) / N)
 
-    return gesture, rms
+    # Dynamic noise floor threshold (auto-adjusts to resting baseline)
+    noise_gate = max(baseline_noise * 1.5, 0.05)
+    
+    # 1. Check if resting
+    if rms < noise_gate:
+        return 'RELAX', rms
+
+    # 2. Check for Double Pulse (quick contraction twice within 700 ms)
+    now = time.ticks_ms()
+    if rms > 0.35:
+        if time.ticks_diff(now, last_peak_time) > 200 and time.ticks_diff(now, last_peak_time) < 700:
+            last_peak_time = now
+            return 'DOUBLE_PULSE', rms
+        else:
+            last_peak_time = now
+
+    # 3. High Force vs Moderate Contraction
+    if rms >= 0.45 or mav >= 0.35:
+        return 'FIST', rms          # Strong muscle squeeze / clench
+    elif rms >= 0.12 or mav >= 0.09:
+        return 'OPEN_HAND', rms     # Moderate finger stretch / hand open
+    else:
+        return 'RELAX', rms
 
 # --- 4. MAIN ACQUISITION & TRANSMISSION LOOP ---
 def main():
@@ -92,11 +112,18 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(0.0)
 
-    # Calibration DC offset
-    print("[*] Calibrating resting baseline on GP26...")
-    sum_raw = sum(emg_adc.read_u16() for _ in range(300))
-    baseline = (sum_raw / 300.0) / 65535.0 * 3.3
-    print(f"[+] Baseline DC Offset: {baseline:.3f} V")
+    # Calibration DC offset & resting noise level
+    print("[*] Calibrating resting baseline on GP26 (Keep Arm Relaxed)...")
+    samples_cal = []
+    for _ in range(300):
+        v = (emg_adc.read_u16() / 65535.0) * 3.3
+        samples_cal.append(v)
+        time.sleep_ms(2)
+
+    baseline = sum(samples_cal) / len(samples_cal)
+    # Estimate baseline resting RMS noise
+    baseline_noise = math.sqrt(sum((x - baseline)**2 for x in samples_cal) / len(samples_cal))
+    print(f"[+] Baseline DC Offset: {baseline:.3f} V | Noise Floor: {baseline_noise:.3f} V")
 
     buffer = []
     sample_count = 0
@@ -116,7 +143,7 @@ def main():
 
             # 2. Window transmission every 50 samples (10 times per second)
             if len(buffer) >= WINDOW_SIZE:
-                gesture, rms = classify_window(buffer)
+                gesture, rms = classify_basic_movement(buffer, baseline_noise)
 
                 # Format packet: "GESTURE,RMS,VOLTAGE"
                 packet = f"{gesture},{rms:.4f},{voltage:.4f}\n"

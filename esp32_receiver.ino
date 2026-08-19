@@ -129,27 +129,24 @@ void loop() {
   }
 }
 
-// Actuates 5-finger servos based on recognized gesture
+// Actuates 5-finger servos based on simplified basic gestures
 void actuateServos(String gesture) {
   if (gesture == "FIST") {
-    // All fingers fully closed (180 degrees)
+    // All fingers tightly closed (180 degrees)
     setRoboticHand(180, 180, 180, 180, 180);
   } 
   else if (gesture == "OPEN_HAND") {
-    // All fingers fully open (0 degrees)
+    // All fingers fully extended open (0 degrees)
     setRoboticHand(0, 0, 0, 0, 0);
   } 
-  else if (gesture == "WRIST_FLEX") {
-    // Power grip (Thumb + Index + Middle close)
-    setRoboticHand(160, 160, 160, 0, 0);
-  } 
-  else if (gesture == "WRIST_EXT") {
-    // Pointing gesture (Index open, others closed)
+  else if (gesture == "DOUBLE_PULSE") {
+    // Wave action / Point gesture
     setRoboticHand(180, 0, 180, 180, 180);
+    delay(100);
   } 
   else { // RELAX
-    // Semi-relaxed resting pose (20 degrees)
-    setRoboticHand(20, 20, 20, 20, 20);
+    // Resting position (25 degrees)
+    setRoboticHand(25, 25, 25, 25, 25);
   }
 }
 
