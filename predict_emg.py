@@ -80,7 +80,12 @@ def run_prediction(model_type="kaggle", input_file=None):
     print("=" * 70)
 
     # 1. Select Model
-    if model_type.lower() in ["kaggle", "kaggle_rf"]:
+    if model_type.lower() in ["ninapro", "nina"]:
+        model_path = "ninapro_model.pkl"
+        meta_path = "ninapro_meta.json"
+        is_torch = False
+        default_gestures = ['RELAX', 'FIST', 'OPEN_HAND', 'WRIST_FLEX', 'WRIST_EXT', 'RADIAL_DEV', 'ULNAR_DEV']
+    elif model_type.lower() in ["kaggle", "kaggle_rf"]:
         model_path = "kaggle_emg_model.pkl"
         meta_path = "kaggle_emg_meta.json"
         is_torch = False

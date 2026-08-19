@@ -39,5 +39,6 @@ __pycache__/
 dataset/*.csv
 dataset/*.npz
 dataset/uci_emg/
+dataset/ninapro/
 my_emg_recordings/
 
