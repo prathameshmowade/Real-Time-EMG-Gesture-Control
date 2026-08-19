@@ -78,15 +78,15 @@ def download_uci_dataset(dest_dir="dataset/uci_emg"):
 
 def display_dataset_catalog():
     print("=" * 70)
-    print("   🌐 TOP REAL-WORLD EMG BENCHMARK DATASETS FOR GESTURE CONTROL")
+    print("   TOP REAL-WORLD EMG BENCHMARK DATASETS FOR GESTURE CONTROL")
     print("=" * 70)
     for key, ds in PUBLIC_DATASETS.items():
         print(f"\n[{key}] {ds['name']}")
-        print(f"    • Description: {ds['description']}")
-        print(f"    • Subjects: {ds['subjects']} | Channels: {ds['channels']}")
-        print(f"    • Official URL: {ds['url']}")
+        print(f"    * Description: {ds['description']}")
+        print(f"    * Subjects: {ds['subjects']} | Channels: {ds['channels']}")
+        print(f"    * Official URL: {ds['url']}")
         if "access_note" in ds:
-            print(f"    • Access: {ds['access_note']}")
+            print(f"    * Access: {ds['access_note']}")
     print("=" * 70)
 
 if __name__ == "__main__":
@@ -96,3 +96,4 @@ if __name__ == "__main__":
     
     if len(sys.argv) > 1 and sys.argv[1] == "--download-uci":
         download_uci_dataset()
+
