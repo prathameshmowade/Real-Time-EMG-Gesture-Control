@@ -1,0 +1,77 @@
+{
+  "architecture": "CNN-BiLSTM (Spatial-Temporal Conv-Recurrent Network)",
+  "components": {
+    "cnn_frontend": "3-layer 1D Conv (k=7, 5, 3)",
+    "recurrent_core": "2-layer Bidirectional LSTM (hidden=64)",
+    "attention": "Temporal Self-Attention Pooling",
+    "feature_fusion": "15 Handcrafted Features Projection (Dense 32)"
+  },
+  "total_params": 253735,
+  "cv_accuracy": {
+    "mean": 0.5297,
+    "std": 0.0125,
+    "n_folds": 5
+  },
+  "test_accuracy": 0.4102,
+  "test_loss": 1.2861,
+  "per_class_f1": {
+    "FIST": 0.2069,
+    "OPEN_HAND": 0.423,
+    "WRIST_UP": 0.0,
+    "WRIST_DOWN": 0.1079,
+    "DOUBLE_FLEX": 0.5021,
+    "RELAX": 0.9499
+  },
+  "confusion_matrix": {
+    "FIST": {
+      "FIST": 27,
+      "OPEN_HAND": 64,
+      "WRIST_UP": 30,
+      "WRIST_DOWN": 57,
+      "DOUBLE_FLEX": 2,
+      "RELAX": 0
+    },
+    "OPEN_HAND": {
+      "FIST": 0,
+      "OPEN_HAND": 158,
+      "WRIST_UP": 0,
+      "WRIST_DOWN": 7,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 15
+    },
+    "WRIST_UP": {
+      "FIST": 0,
+      "OPEN_HAND": 137,
+      "WRIST_UP": 0,
+      "WRIST_DOWN": 43,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "WRIST_DOWN": {
+      "FIST": 0,
+      "OPEN_HAND": 159,
+      "WRIST_UP": 0,
+      "WRIST_DOWN": 17,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 4
+    },
+    "DOUBLE_FLEX": {
+      "FIST": 54,
+      "OPEN_HAND": 49,
+      "WRIST_UP": 5,
+      "WRIST_DOWN": 11,
+      "DOUBLE_FLEX": 61,
+      "RELAX": 0
+    },
+    "RELAX": {
+      "FIST": 0,
+      "OPEN_HAND": 0,
+      "WRIST_UP": 0,
+      "WRIST_DOWN": 0,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 180
+    }
+  },
+  "training_time_seconds": 458.3,
+  "device": "cpu"
+}

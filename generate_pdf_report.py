@@ -250,14 +250,6 @@ def build_pdf(filename="EMG_Gesture_Recognition_Project_Report.pdf"):
             Paragraph("Inference Latency", table_cell_header),
         ],
         [
-            Paragraph("<b>DTSF-CNN (Ours)</b>", table_cell_bold),
-            Paragraph("Deep Learning (PyTorch)", table_cell),
-            Paragraph("258,034 trainable params", table_cell),
-            Paragraph("<b>56.32% ± 0.80%</b> 🏆", table_cell_bold),
-            Paragraph("29.26%", table_cell),
-            Paragraph("&lt; 0.20 ms / win", table_cell)
-        ],
-        [
             Paragraph("<b>Random Forest (Tuned)</b>", table_cell_bold),
             Paragraph("Classical Ensemble", table_cell),
             Paragraph("200 trees, depth=10, leaf=2", table_cell),
@@ -272,6 +264,30 @@ def build_pdf(filename="EMG_Gesture_Recognition_Project_Report.pdf"):
             Paragraph("48.40% ± 0.56%", table_cell),
             Paragraph("<b>62.50%</b>", table_cell),
             Paragraph("&lt; 0.08 ms / win", table_cell)
+        ],
+        [
+            Paragraph("<b>DTSF-CNN (Dual-Branch)</b>", table_cell_bold),
+            Paragraph("Deep Learning (PyTorch)", table_cell),
+            Paragraph("258,034 trainable params", table_cell),
+            Paragraph("<b>56.32% ± 0.80%</b> 🏆", table_cell_bold),
+            Paragraph("29.26%", table_cell),
+            Paragraph("&lt; 0.20 ms / win", table_cell)
+        ],
+        [
+            Paragraph("<b>CNN-BiLSTM (Conv-RNN)</b>", table_cell_bold),
+            Paragraph("Spatial-Temporal PyTorch", table_cell),
+            Paragraph("253,735 trainable params", table_cell),
+            Paragraph("<b>52.97% ± 1.25%</b>", table_cell_bold),
+            Paragraph("<b>41.02%</b>", table_cell_bold),
+            Paragraph("&lt; 0.35 ms / win", table_cell)
+        ],
+        [
+            Paragraph("<b>TCN (Dilated Causal Conv)</b>", table_cell_bold),
+            Paragraph("Temporal ConvNet", table_cell),
+            Paragraph("118,566 trainable params", table_cell),
+            Paragraph("<b>50.51% ± 0.78%</b>", table_cell_bold),
+            Paragraph("<b>41.57%</b> ⚡", table_cell_bold),
+            Paragraph("&lt; 0.15 ms / win", table_cell)
         ],
         [
             Paragraph("<b>Weighted Soft Voting</b>", table_cell_bold),
@@ -447,42 +463,49 @@ def build_pdf(filename="EMG_Gesture_Recognition_Project_Report.pdf"):
     story.append(Spacer(1, 8))
 
     # ─────────────────────────────────────────────────────────────
-    # 4. DEEP LEARNING: DUAL-PATH TEMPORAL-SPECTRAL FUSION CNN
+    # 4. DEEP LEARNING ARCHITECTURES SUITE
     # ─────────────────────────────────────────────────────────────
-    story.append(Paragraph("4. Deep Learning Architecture: DTSF-CNN", h1_style))
+    story.append(Paragraph("4. Deep Learning Architectures Suite", h1_style))
     story.append(Paragraph(
-        "A novel <b>Dual-Path Temporal-Spectral Fusion CNN (DTSF-CNN)</b> was developed in PyTorch (`train_cnn_model.py`) "
-        "featuring <b>258,034 trainable parameters</b>:",
+        "To capture hierarchical temporal patterns, frequency transients, and long-range sequential dynamics in single-channel EMG, "
+        "three state-of-the-art deep learning architectures were developed in PyTorch:",
         body_style
     ))
 
-    arch_bullets = (
-        "• <b>Path A (Multi-Scale Temporal Convolutions):</b> Three parallel Conv1D branches with kernel sizes "
-        "k=7 (~14 ms, motor unit twitches), k=15 (~30 ms, voluntary contraction onset), and k=31 (~62 ms, sustained force envelopes), "
-        "followed by 2x ResBlock1D layers and Global Average Pooling (96-dim).<br/>"
-        "• <b>Path B (Spectral Attention Block):</b> Calculates Welch Power Spectral Density (33 frequency bins), processed through Conv1D "
-        "layers with Squeeze-and-Excitation (SE) channel recalibration (48-dim).<br/>"
-        "• <b>Adaptive Sigmoid Fusion Gate:</b> Dynamically weights representations: h_fused = g * h_temp + (1-g) * h_spec.<br/>"
-        "• <b>FiLM Conditioning Layer:</b> Modulates deep representations with the 15 handcrafted features via affine transformation: "
-        "h_out = gamma(f) * h + beta(f)."
+    dl_suite_bullets = (
+        "• <b>1. Dual-Path Temporal-Spectral Fusion CNN (DTSF-CNN — 258,034 params):</b> Combines multi-scale 1D convolutions "
+        "(k=7, 15, 31) with Welch Power Spectral Density attention and FiLM conditioning. Achieves the highest <b>5-fold CV accuracy (56.32% ± 0.80%)</b>.<br/>"
+        "• <b>2. Spatial-Temporal CNN-BiLSTM (Conv-RNN — 253,735 params):</b> 3-layer Conv1D front-end + 2-layer Bidirectional LSTM "
+        "(hidden=64) + Temporal Self-Attention. Captures dynamic onset trajectories and contraction hold phases. Achieves <b>52.97% ± 1.25% CV</b> and <b>41.02% test accuracy</b>.<br/>"
+        "• <b>3. Temporal Convolutional Network (TCN — 118,566 params):</b> Dilated causal 1D convolutions with exponentially expanding "
+        "receptive fields (d=1, 2, 4), residual connections, and global average pooling. Achieves <b>50.51% ± 0.78% CV</b> and the highest deep learning test accuracy of <b>41.57%</b>."
     )
-    story.append(Paragraph(arch_bullets, body_style))
+    story.append(Paragraph(dl_suite_bullets, body_style))
     story.append(Spacer(1, 4))
 
-    # Embed cnn_results.png if it exists
-    img_path = "cnn_results.png"
-    if os.path.exists(img_path):
-        story.append(Paragraph("<b>Figure 1: DTSF-CNN Training Curves & Multi-Class Confusion Matrix</b>", h2_style))
-        story.append(Image(img_path, width=6.8 * inch, height=2.6 * inch))
+    # Deep learning figures
+    if os.path.exists("cnn_results.png"):
+        story.append(Paragraph("<b>Figure 1: DTSF-CNN Loss / Accuracy Curves & Confusion Matrix</b>", h2_style))
+        story.append(Image("cnn_results.png", width=6.8 * inch, height=2.3 * inch))
+        story.append(Spacer(1, 4))
+
+    if os.path.exists("bilstm_results.png"):
+        story.append(Paragraph("<b>Figure 2: CNN-BiLSTM Training Trajectories & Multi-Class Matrix</b>", h2_style))
+        story.append(Image("bilstm_results.png", width=6.8 * inch, height=2.3 * inch))
+        story.append(Spacer(1, 4))
+
+    if os.path.exists("tcn_results.png"):
+        story.append(Paragraph("<b>Figure 3: Temporal Convolutional Network (TCN) Evaluation Metrics</b>", h2_style))
+        story.append(Image("tcn_results.png", width=6.8 * inch, height=2.3 * inch))
         story.append(Spacer(1, 6))
 
     # ─────────────────────────────────────────────────────────────
     # 5. DETAILED ACCURACY BREAKDOWN & CONFUSION MATRIX
     # ─────────────────────────────────────────────────────────────
-    story.append(Paragraph("5. Detailed Per-Class Accuracy & Confusion Matrix Analysis", h1_style))
+    story.append(Paragraph("5. Detailed Per-Class Accuracy & Model Comparison Analysis", h1_style))
     story.append(Paragraph(
-        "Evaluation across <b>1,080 test samples</b> from 3 unseen subjects. Results show perfect recognition on resting baselines "
-        "and reveal physiological crosstalk among high-power wrist contractions:",
+        "Evaluation across <b>1,080 test samples</b> from 3 completely unseen subjects. Results compare Classical Random Forest "
+        "against the three deep learning architectures:",
         body_style
     ))
 
@@ -490,62 +513,69 @@ def build_pdf(filename="EMG_Gesture_Recognition_Project_Report.pdf"):
     per_class_data = [
         [
             Paragraph("Gesture Class", table_cell_header),
-            Paragraph("True Samples", table_cell_header),
-            Paragraph("Correct (TP)", table_cell_header),
-            Paragraph("DTSF-CNN F1-Score", table_cell_header),
-            Paragraph("Random Forest F1", table_cell_header),
-            Paragraph("Diagnostic Insight", table_cell_header),
+            Paragraph("Samples", table_cell_header),
+            Paragraph("RF (Classical)", table_cell_header),
+            Paragraph("DTSF-CNN F1", table_cell_header),
+            Paragraph("CNN-BiLSTM F1", table_cell_header),
+            Paragraph("TCN F1", table_cell_header),
+            Paragraph("Diagnostic Characteristic", table_cell_header),
         ],
         [
             Paragraph("<b>RELAX</b> ✋", table_cell_bold),
             Paragraph("180", table_cell),
-            Paragraph("<b>180 (100%)</b>", table_cell_bold),
-            Paragraph("<b>1.0000 (100%)</b> 🏆", table_cell_bold),
             Paragraph("<b>1.0000 (100%)</b>", table_cell_bold),
-            Paragraph("Zero false positives/negatives; perfect resting baseline separation.", table_cell)
+            Paragraph("<b>1.0000 (100%)</b>", table_cell_bold),
+            Paragraph("<b>0.9499 (95%)</b>", table_cell_bold),
+            Paragraph("<b>1.0000 (100%)</b> 🏆", table_cell_bold),
+            Paragraph("Zero false triggers across all models.", table_cell)
         ],
         [
             Paragraph("<b>OPEN_HAND</b> 🖐", table_cell_bold),
             Paragraph("180", table_cell),
-            Paragraph("89 (49.4%)", table_cell),
-            Paragraph("<b>0.3352 (33.5%)</b>", table_cell),
-            Paragraph("<b>0.6818 (68.2%)</b>", table_cell_bold),
-            Paragraph("High radial extension clarity; minor confusion with wrist down.", table_cell)
+            Paragraph("<b>0.6818 (68%)</b>", table_cell_bold),
+            Paragraph("0.3352 (34%)", table_cell),
+            Paragraph("<b>0.4230 (42%)</b>", table_cell),
+            Paragraph("<b>0.4442 (44%)</b>", table_cell_bold),
+            Paragraph("TCN achieves 98.3% recall (177/180 TP).", table_cell)
         ],
         [
             Paragraph("<b>WRIST_UP</b> ☝️", table_cell_bold),
             Paragraph("180", table_cell),
-            Paragraph("33 (18.3%)", table_cell),
-            Paragraph("<b>0.1507 (15.1%)</b>", table_cell),
-            Paragraph("<b>0.5609 (56.1%)</b>", table_cell_bold),
-            Paragraph("Dorsiflexion shares spatial motor units with open hand.", table_cell)
+            Paragraph("<b>0.5609 (56%)</b> 🌟", table_cell_bold),
+            Paragraph("0.1507 (15%)", table_cell),
+            Paragraph("0.0000 (0%)", table_cell),
+            Paragraph("0.0000 (0%)", table_cell),
+            Paragraph("Forearm spatial crosstalk with OPEN_HAND.", table_cell)
         ],
         [
             Paragraph("<b>WRIST_DOWN</b> 👇", table_cell_bold),
             Paragraph("180", table_cell),
-            Paragraph("14 (7.8%)", table_cell),
-            Paragraph("<b>0.0670 (6.7%)</b>", table_cell),
-            Paragraph("<b>0.5224 (52.2%)</b>", table_cell_bold),
-            Paragraph("Palmar flexion overlap with wrist up and fist.", table_cell)
+            Paragraph("<b>0.5224 (52%)</b> 🌟", table_cell_bold),
+            Paragraph("0.0670 (7%)", table_cell),
+            Paragraph("0.1079 (11%)", table_cell),
+            Paragraph("0.0211 (2%)", table_cell),
+            Paragraph("Palmar flexor signal shares MAV with FIST.", table_cell)
         ],
         [
             Paragraph("<b>FIST</b> ✊", table_cell_bold),
             Paragraph("180", table_cell),
-            Paragraph("0 (0.0%)", table_cell),
-            Paragraph("0.0000 (0.0%)", table_cell),
-            Paragraph("<b>0.7143 (71.4%)</b> 🌟", table_cell_bold),
-            Paragraph("Deep model biased toward wrist down; RF separates via MAV.", table_cell)
+            Paragraph("<b>0.7143 (71%)</b> 🌟", table_cell_bold),
+            Paragraph("0.0000 (0%)", table_cell),
+            Paragraph("0.2069 (21%)", table_cell),
+            Paragraph("<b>0.4215 (42%)</b>", table_cell_bold),
+            Paragraph("TCN correctly recovers 50% true positives.", table_cell)
         ],
         [
             Paragraph("<b>DOUBLE_FLEX</b> 💪", table_cell_bold),
             Paragraph("180", table_cell),
-            Paragraph("0 (0.0%)", table_cell),
-            Paragraph("0.0000 (0.0%)", table_cell),
-            Paragraph("<b>0.7500 (75.0%)</b> 🌟", table_cell_bold),
-            Paragraph("Highest amplitude state; RF achieves 75% F1 using RMS energy.", table_cell)
+            Paragraph("<b>0.7500 (75%)</b> 🌟", table_cell_bold),
+            Paragraph("0.0000 (0%)", table_cell),
+            Paragraph("<b>0.5021 (50%)</b>", table_cell_bold),
+            Paragraph("0.0000 (0%)", table_cell),
+            Paragraph("BiLSTM precision is 96.8% on co-contraction.", table_cell)
         ],
     ]
-    pc_table = Table(per_class_data, colWidths=[80, 50, 64, 85, 75, 150])
+    pc_table = Table(per_class_data, colWidths=[75, 45, 75, 68, 75, 65, 101])
     pc_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), c_primary),
         ('GRID', (0,0), (-1,-1), 0.5, c_border),

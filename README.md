@@ -167,74 +167,70 @@ ensemble = VotingClassifier(
 
 ---
 
-## 🧬 Deep Learning Architecture: DTSF-CNN
+---
 
-The **Dual-Path Temporal-Spectral Fusion CNN (DTSF-CNN)** (`train_cnn_model.py`) is implemented in PyTorch with **258,034 trainable parameters**:
+## 🧬 Deep Learning Architectures Suite
+
+Three specialized deep learning architectures were engineered in PyTorch to model raw multi-scale sEMG biopotentials, spectral signatures, and sequential contraction trajectories:
 
 ```
-  Raw EMG Signal (256 samples @ 500 Hz)
-         │
-    ┌────┴──────────────────────────┐
-    │                               │
-    ▼                               ▼
- ═════════════════════════    ═════════════════════════
- PATH A: Multi-Scale Temporal PATH B: Spectral (Welch PSD)
- ═════════════════════════    ═════════════════════════
- ┌───────────────────────┐    ┌───────────────────────┐
- │ Conv1D k=7  (14ms)    │    │ Welch PSD (33 bins)   │
- │ Conv1D k=15 (30ms)    │    │ Conv1D (k=5)          │
- │ Conv1D k=31 (62ms)    │    │ Conv1D (k=11)         │
- └──────────┬────────────┘    │ Squeeze-Excitation SE │
-            │ Concat          └───────────┬───────────┘
-            ▼                             ▼
- ┌───────────────────────┐    ┌───────────────────────┐
- │ 2× ResBlock1D + GAP   │    │ 1× ResBlock1D + GAP   │
- └──────────┬────────────┘    └───────────┬───────────┘
-            │ (96-dim)                    │ (48-dim)
-            └──────────────┬──────────────┘
-                           ▼
-            ┌─────────────────────────────┐
-            │   Adaptive Fusion Gate      │
-            │   g = σ(W · [h_t, h_s])     │
-            │   h = g⊙h_t + (1-g)⊙h_s     │
-            └──────────────┬──────────────┘
-                           │ (64-dim)
-                           ▼
-            ┌─────────────────────────────┐
-            │   FiLM Conditioning Layer   │
-            │   (15 Handcrafted Features) │
-            │   h_out = γ(f) ⊙ h + β(f)   │
-            └──────────────┬──────────────┘
-                           │ (64-dim)
-                           ▼
-            ┌─────────────────────────────┐
-            │ Dropout(0.3) ──► Linear(6)  │
-            └─────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 DEEP LEARNING MODEL SUITE                                        │
+├────────────────────────────────┬────────────────────────────────┬────────────────────────────────┤
+│ 1. DTSF-CNN (258k params)      │ 2. CNN-BiLSTM (253k params)    │ 3. Fast TCN (118k params)      │
+│  • Multi-Scale Conv1D (k=7,15,31)│  • 3-Layer Conv1D Front-End    │  • Dilated Causal Conv (d=1,2,4)│
+│  • Welch PSD + SE-Attention    │  • 2-Layer BiLSTM (hidden=64)  │  • 1x1 Conv Skip Connections   │
+│  • Adaptive Sigmoid Gate       │  • Self-Attention Pooling      │  • Global Avg 1D Pooling       │
+│  • FiLM 15-Feature Conditioning│  • 15-Feature Dense Fusion     │  • 15-Feature Projection Head  │
+│  • 5-Fold CV: 56.32% ± 0.80% 🏆│  • 5-Fold CV: 52.97% ± 1.25%   │  • 5-Fold CV: 50.51% ± 0.78%   │
+│  • Test Acc: 29.26%            │  • Test Acc: 41.02%            │  • Test Acc: 41.57% ⚡         │
+└────────────────────────────────┴────────────────────────────────┴────────────────────────────────┘
 ```
 
-### Key Architectural Highlights
+### 1. Dual-Path Temporal-Spectral Fusion CNN (DTSF-CNN) — `train_cnn_model.py`
+- **Path A (Multi-Scale Temporal)**: Parallel Conv1D kernels ($k=7$ for 14ms motor twitches, $k=15$ for 30ms contraction onsets, $k=31$ for 62ms sustained envelopes) followed by 2 residual blocks and GAP (96-dim).
+- **Path B (Spectral Attention)**: 33-bin Welch PSD processed via Conv1D with **Squeeze-and-Excitation (SE)** channel recalibration (48-dim).
+- **Adaptive Sigmoid Gate & FiLM**: Dynamically fuses temporal and spectral features: $h_{\text{fused}} = g \odot h_t + (1-g) \odot h_s$, conditioned by the 15 handcrafted time-domain features via affine modulation $h_{\text{out}} = \gamma(f) \odot h + \beta(f)$.
 
-1. **Multi-Scale Temporal Convolutions (Path A)**: Parallel 1D kernels ($k=7$ for 14ms motor twitches, $k=15$ for 30ms contraction onsets, $k=31$ for 62ms sustained envelopes) followed by residual 1D blocks and Global Average Pooling (96-dim).
-2. **Spectral Attention Decomposition (Path B)**: 33-bin Welch PSD processed via Conv1D with **Squeeze-and-Excitation (SE)** channel recalibration (48-dim).
-3. **Adaptive Sigmoid Fusion Gate**: Dynamically computes gate coefficient $g = \sigma(W_g \cdot [h_t, h_s] + b_g)$ to balance temporal vs. spectral modalities under varying signal-to-noise ratios.
-4. **FiLM Conditioning Layer**: Mathematically injects the 15 handcrafted time-domain features as an affine modulation $h_{\text{out}} = \gamma(f) \odot h + \beta(f)$.
-5. **Training Protocol**: AdamW ($\text{LR}=10^{-3}$, $\text{Weight Decay}=10^{-4}$), Cosine Annealing learning rate schedule, and Early Stopping with patience 15.
+### 2. Spatial-Temporal Conv-RNN (CNN-BiLSTM) — `train_bilstm_model.py`
+- **Hierarchical Conv1D Front-End**: 3 cascaded Conv1D layers ($k=7, 5, 3$) with BatchNorm, GELU, and Dropout extracting local morphological features across downsampled temporal slices ($T=32, C=64$).
+- **Bidirectional Recurrent Modeling**: 2-layer BiLSTM ($\text{hidden}=64$) computing forward and backward temporal hidden state trajectories ($128$-dim per step).
+- **Temporal Self-Attention Pooling**: Learns attention weights $\alpha_t = \text{softmax}(w^T \tanh(W h_t))$ to compress the variable-length contraction sequence into an optimal fixed-length representation.
+- **Precision**: Achieves **96.83% precision on DOUBLE_FLEX** and **100% recall on RELAX**.
+
+### 3. Temporal Convolutional Network (TCN) — `train_tcn_fast.py`
+- **Dilated Causal Convolutions**: 3 stacked residual temporal blocks with dilation factors $d \in \{1, 2, 4\}$ and kernel $k=3$, expanding the receptive field across the entire 256-sample window without information leakage.
+- **Residual Channel Matching**: $1\times1$ linear convolutions ensure exact dimensional alignment across residual skip connections ($res + out$).
+- **High Test Generalization**: Achieves **41.57% test accuracy** on unseen subjects with **100% RELAX precision/recall** and **98.33% OPEN_HAND recall** with low parameter count (118,566).
 
 ---
 
 ## 📊 Comprehensive Model Evaluation & Benchmarks
 
-### 1. Overall Accuracy Comparison
+### 1. Overall Accuracy Benchmark Comparison
 
-| Model Architecture | Model Family | Parameters / Trees | 5-Fold CV Accuracy | Test Accuracy (Unseen Users) |
-| :--- | :--- | :---: | :---: | :---: |
-| **DTSF-CNN (Ours)** | **Deep Learning (PyTorch)** | **258,034** | **56.32% ± 0.80%** 🏆 | **29.26%** |
-| **Random Forest (Tuned)** | Ensemble ML | 200 trees (`depth=10`) | **51.62% ± 0.91%** | **68.43%** |
-| **Gradient Boosting** | Ensemble ML | 150 estimators | **51.13% ± 1.11%** | — |
-| **Weighted Soft Voting Ensemble** | Meta-Ensemble | RF + SVM + GNB | **54.95%** (Train) | **50.65%** |
-| **k-Nearest Neighbors ($k=7$)** | Classical ML | Standardized | **48.55% ± 0.82%** | — |
-| **Support Vector Machine (RBF)** | Classical ML | $C=10, \gamma=\text{'scale'}$ | **48.40% ± 0.56%** | **62.50%** |
-| **Gaussian Naive Bayes** | Classical ML | Pico W Target | **40.69% ± 0.90%** | **33.43%** |
+| Model Architecture | Model Family | Parameters / Trees | 5-Fold CV Accuracy | Test Accuracy (Unseen Users) | Inference Latency |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Random Forest (Tuned)** | **Ensemble ML** | **200 trees (`depth=10`)** | **51.62% ± 0.91%** | **68.43%** 🌟 | **< 0.05 ms** |
+| **SVM (RBF Kernel)** | Classical ML | $C=10, \gamma=\text{'scale'}$ | **48.40% ± 0.56%** | **62.50%** | **< 0.08 ms** |
+| **DTSF-CNN (Dual-Branch)** | **Deep Learning (PyTorch)** | **258,034** | **56.32% ± 0.80%** 🏆 | **29.26%** | **< 0.20 ms** |
+| **CNN-BiLSTM (Conv-RNN)** | **Deep Learning (PyTorch)** | **253,735** | **52.97% ± 1.25%** | **41.02%** | **< 0.35 ms** |
+| **TCN (Dilated Causal Conv)** | **Deep Learning (PyTorch)** | **118,566** | **50.51% ± 0.78%** | **41.57%** ⚡ | **< 0.15 ms** |
+| **Weighted Soft Voting Ensemble** | Meta-Ensemble | RF + SVM + GNB | **54.95%** (Train) | **50.65%** | **< 0.10 ms** |
+| **Gradient Boosting** | Ensemble ML | 150 estimators | **51.13% ± 1.11%** | — | **< 0.12 ms** |
+| **k-Nearest Neighbors ($k=7$)** | Classical ML | Standardized | **48.55% ± 0.82%** | — | **< 0.15 ms** |
+| **Gaussian Naive Bayes** | Classical ML | Pico W Target | **40.69% ± 0.90%** | **33.43%** | **< 0.01 ms** |
+
+### 2. Per-Gesture F1-Score Breakdown (Unseen Test Cohort)
+
+| Gesture | Icon | Physiological Action | Random Forest | DTSF-CNN | CNN-BiLSTM | TCN |
+| :--- | :---: | :--- | :---: | :---: | :---: | :---: |
+| **RELAX** | ✋ | Resting Muscular Baseline | **1.0000 (100%)** | **1.0000 (100%)** | **0.9499 (95%)** | **1.0000 (100%)** 🏆 |
+| **OPEN_HAND** | 🖐 | Radial Finger Extension | **0.6818 (68%)** | 0.3352 (34%) | **0.4230 (42%)** | **0.4442 (44%)** |
+| **WRIST_UP** | ☝️ | Wrist Dorsiflexion | **0.5609 (56%)** | 0.1507 (15%) | 0.0000 (0%) | 0.0000 (0%) |
+| **WRIST_DOWN** | 👇 | Wrist Palmar Flexion | **0.5224 (52%)** | 0.0670 (7%) | 0.1079 (11%) | 0.0211 (2%) |
+| **FIST** | ✊ | Clenched Fist Contraction | **0.7143 (71%)** | 0.0000 (0%) | 0.2069 (21%) | **0.4215 (42%)** |
+| **DOUBLE_FLEX** | 💪 | Forearm + Wrist Co-Contraction | **0.7500 (75%)** | 0.0000 (0%) | **0.5021 (50%)** | 0.0000 (0%) |
 
 ### 2. Feature Importance Ranking (Random Forest)
 

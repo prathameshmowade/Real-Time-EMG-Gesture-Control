@@ -1,0 +1,77 @@
+{
+  "architecture": "Temporal Convolutional Network (TCN)",
+  "components": {
+    "dilated_conv_blocks": "3 Temporal Blocks (d=1, 2, 4; k=3)",
+    "residual_connections": "1x1 Conv channel matching",
+    "pooling": "Global Adaptive Average 1D Pooling",
+    "feature_fusion": "15 Handcrafted Features Projection (Dense 32)"
+  },
+  "total_params": 118566,
+  "cv_accuracy": {
+    "mean": 0.5051,
+    "std": 0.0078,
+    "n_folds": 5
+  },
+  "test_accuracy": 0.4157,
+  "test_loss": 1.3292,
+  "per_class_f1": {
+    "FIST": 0.4215,
+    "OPEN_HAND": 0.4442,
+    "WRIST_UP": 0.0,
+    "WRIST_DOWN": 0.0211,
+    "DOUBLE_FLEX": 0.0,
+    "RELAX": 1.0
+  },
+  "confusion_matrix": {
+    "FIST": {
+      "FIST": 90,
+      "OPEN_HAND": 75,
+      "WRIST_UP": 10,
+      "WRIST_DOWN": 5,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "OPEN_HAND": {
+      "FIST": 0,
+      "OPEN_HAND": 177,
+      "WRIST_UP": 3,
+      "WRIST_DOWN": 0,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "WRIST_UP": {
+      "FIST": 29,
+      "OPEN_HAND": 149,
+      "WRIST_UP": 0,
+      "WRIST_DOWN": 2,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "WRIST_DOWN": {
+      "FIST": 8,
+      "OPEN_HAND": 165,
+      "WRIST_UP": 5,
+      "WRIST_DOWN": 2,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "DOUBLE_FLEX": {
+      "FIST": 120,
+      "OPEN_HAND": 51,
+      "WRIST_UP": 8,
+      "WRIST_DOWN": 1,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 0
+    },
+    "RELAX": {
+      "FIST": 0,
+      "OPEN_HAND": 0,
+      "WRIST_UP": 0,
+      "WRIST_DOWN": 0,
+      "DOUBLE_FLEX": 0,
+      "RELAX": 180
+    }
+  },
+  "training_time_seconds": 748.7,
+  "device": "cpu"
+}
