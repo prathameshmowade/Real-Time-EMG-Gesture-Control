@@ -427,6 +427,11 @@ export default function EMGDashboard(){
   const [sessionLog,setSessionLog]=useState([]);
   const [sessionTime,setSessionTime]=useState(0);
   const [fatigueWarn,setFatigueWarn]=useState(false);
+  // Hardware Connection State
+  const [hwMode, setHwMode] = useState(false);
+  const [hwStatus, setHwStatus] = useState("Offline (Simulated)");
+  const wsRef = useRef(null);
+
   // Calibration
   const [calPhase,setCalPhase]=useState("idle");
   const [calStep,setCalStep]=useState(0);
@@ -456,6 +461,8 @@ export default function EMGDashboard(){
   const intRef=useRef(null);
   const sessionRef=useRef(null);
   const fatigueBaseRef=useRef(null);
+  const hwModeRef=useRef(false);
+  useEffect(()=>{hwModeRef.current=hwMode;},[hwMode]);
 
   useEffect(()=>{simGRef.current=simG;},[simG]);
   useEffect(()=>{uScaleRef.current=uScale;},[uScale]);
@@ -498,19 +505,115 @@ export default function EMGDashboard(){
     return()=>clearInterval(sessionRef.current);
   },[live]);
 
-  // ── Signal loop ───────────────────────────────────────
+  // ── Hardware WebSocket & WebSerial Functions ─────────────────
+  const toggleHardwareWebSocket = useCallback(()=>{
+    if(hwMode && wsRef.current){
+      wsRef.current.close();
+      setHwMode(false);
+      setHwStatus("Offline (Simulated)");
+      return;
+    }
+    setHwStatus("Connecting to ws://localhost:8765...");
+    try{
+      const ws=new WebSocket("ws://localhost:8765");
+      ws.onopen=()=>{
+        setHwMode(true);
+        setHwStatus("Connected (ws://localhost:8765)");
+        if(!live) setLive(true);
+      };
+      ws.onmessage=(e)=>{
+        try{
+          const data=JSON.parse(e.data);
+          if(data.type==="emg_sample"){
+            tick.current++;
+            const pt={i:tick.current,v:+data.voltage.toFixed(4)};
+            setSigData(p=>[...p,pt].slice(-DISP));
+            bufRef.current.push(data.voltage);
+            if(bufRef.current.length>WIN) bufRef.current.shift();
+          }else if(data.type==="classification"||data.type==="gesture_event"){
+            const g=data.gesture;
+            const rms=data.rms||0.1;
+            const conf=data.confidence?(data.confidence/100):0.95;
+            const intensity=Math.min(100,Math.round(rms*150));
+            setPred({g,conf,proba:{[g]:conf},intensity,snr:28,smoothed:true});
+            if(g!=="UNKNOWN"&&g!==lastGRef.current){
+              lastGRef.current=g;
+              doAction(g,intensity);
+              setSessionLog(p=>[{id:tick.current,time:new Date().toLocaleTimeString(),gesture:g,conf:+(conf*100).toFixed(1),intensity,snr:28},...p].slice(0,200));
+            }
+          }
+        }catch(err){}
+      };
+      ws.onerror=()=>{
+        setHwStatus("Bridge Offline. Run: python hardware_dashboard_server.py");
+        setHwMode(false);
+      };
+      ws.onclose=()=>{
+        setHwMode(false);
+        setHwStatus("Offline (Simulated)");
+      };
+      wsRef.current=ws;
+    }catch(err){
+      setHwStatus("WebSocket Error");
+    }
+  },[live,hwMode]);
+
+  const connectWebSerial = useCallback(async ()=>{
+    if(!navigator.serial){
+      alert("WebSerial API is supported in Google Chrome, Microsoft Edge, and Opera!");
+      return;
+    }
+    try{
+      const port=await navigator.serial.requestPort();
+      await port.open({baudRate:115200});
+      setHwMode(true);
+      setHwStatus("Connected (USB WebSerial)");
+      if(!live) setLive(true);
+
+      const textDecoder=new TextDecoderStream();
+      port.readable.pipeTo(textDecoder.writable);
+      const reader=textDecoder.readable.getReader();
+
+      let lineBuf="";
+      while(true){
+        const{value,done}=await reader.read();
+        if(done) break;
+        lineBuf+=value;
+        const lines=lineBuf.split("\n");
+        lineBuf=lines.pop();
+
+        for(const line of lines){
+          const clean=line.trim();
+          if(!clean) continue;
+          const v=parseFloat(clean);
+          if(!isNaN(v)){
+            tick.current++;
+            setSigData(p=>[...p,{i:tick.current,v:+v.toFixed(4)}].slice(-DISP));
+            bufRef.current.push(v);
+            if(bufRef.current.length>WIN) bufRef.current.shift();
+          }
+        }
+      }
+    }catch(err){
+      console.log("WebSerial Error:",err);
+    }
+  },[live]);
+
+  // ── Signal loop (Simulated generator active only when not in HW mode) ────────────────
   useEffect(()=>{
     if(!live||!ready)return;
     intRef.current=setInterval(()=>{
-      const pts=[],sc=calSRef.current??uScaleRef.current;
-      for(let s=0;s<5;s++){
-        tick.current++;
-        const v=emgSample(simGRef.current,sc,tick.current/SR);
-        pts.push({i:tick.current,v:+v.toFixed(4)});
-        bufRef.current.push(v);if(bufRef.current.length>WIN)bufRef.current.shift();
-        if(calPhRef.current==="recording")calBufRef.current.push(v);
+      if(!hwModeRef.current){
+        const pts=[],sc=calSRef.current??uScaleRef.current;
+        for(let s=0;s<5;s++){
+          tick.current++;
+          const v=emgSample(simGRef.current,sc,tick.current/SR);
+          pts.push({i:tick.current,v:+v.toFixed(4)});
+          bufRef.current.push(v);if(bufRef.current.length>WIN)bufRef.current.shift();
+          if(calPhRef.current==="recording")calBufRef.current.push(v);
+        }
+        setSigData(p=>[...p,...pts].slice(-DISP));
       }
-      setSigData(p=>[...p,...pts].slice(-DISP));
 
       if(tick.current%25===0&&bufRef.current.length>=WIN){
         const rawF=extractFeatures(bufRef.current);
@@ -544,13 +647,15 @@ export default function EMGDashboard(){
           else if(rms>fatigueBaseRef.current*1.25)setFatigueWarn(true);
         }
 
-        setPred({g:finalG,conf,proba,intensity,snr,smoothed:true});
+        if(!hwModeRef.current){
+          setPred({g:finalG,conf,proba,intensity,snr,smoothed:true});
 
-        if(finalG!=="UNKNOWN"&&conf>0.65&&finalG!==lastGRef.current){
-          lastGRef.current=finalG;
-          doAction(finalG,intensity);
-          setSessionLog(p=>[{id:tick.current,time:new Date().toLocaleTimeString(),
-            gesture:finalG,conf:+(conf*100).toFixed(1),intensity,snr},...p].slice(0,200));
+          if(finalG!=="UNKNOWN"&&conf>0.65&&finalG!==lastGRef.current){
+            lastGRef.current=finalG;
+            doAction(finalG,intensity);
+            setSessionLog(p=>[{id:tick.current,time:new Date().toLocaleTimeString(),
+              gesture:finalG,conf:+(conf*100).toFixed(1),intensity,snr},...p].slice(0,200));
+          }
         }
       }
     },10);
@@ -634,15 +739,28 @@ export default function EMGDashboard(){
       <div style={card()}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-            <div style={{width:8,height:8,borderRadius:"50%",background:live?C.green:C.t4,boxShadow:live?`0 0 0 3px ${C.greenL}`:"none"}}/>
-            <span style={{fontSize:12,fontWeight:700,color:C.t2}}>EMG Signal — 15 Features · GNB+RF Ensemble · {SMOOTH_WIN}-Frame Smoothing</span>
+            <div style={{width:8,height:8,borderRadius:"50%",background:hwMode?C.purple:live?C.green:C.t4,boxShadow:hwMode?`0 0 0 3px ${C.purpleL}`:live?`0 0 0 3px ${C.greenL}`:"none"}}/>
+            <span style={{fontSize:12,fontWeight:700,color:C.t2}}>EMG Biopotential Stream · 15 Features</span>
+            <span style={{...badge(hwMode?C.purple:C.t4,hwMode?C.purpleL:C.input),fontSize:10}}>
+              {hwMode?"⚡ "+hwStatus:live?"Simulated Live":"Idle"}
+            </span>
             {live&&<span style={{...badge(C.t4,C.input),fontSize:10}}>SNR {pred.snr} dB</span>}
             {live&&<span style={{fontSize:11,color:C.t3}}>⏱ {fmtTime(sessionTime)}</span>}
           </div>
-          <button onClick={()=>{setLive(l=>{if(l){setSigData([]);setSessionTime(0);smootherRef.current?.reset();fatigueBaseRef.current=null;}return!l;})}}
-            style={btn(live?"danger":"success",{padding:"6px 18px"})}>
-            {live?"■ Stop":"▶ Start"}
-          </button>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <button onClick={toggleHardwareWebSocket}
+              style={btn(hwMode?"danger":"primary",{padding:"6px 12px",fontSize:11,background:hwMode?C.red:C.purple})}>
+              {hwMode?"⚡ Disconnect HW":"⚡ Connect Hardware (WS)"}
+            </button>
+            <button onClick={connectWebSerial}
+              style={btn("secondary",{padding:"6px 12px",fontSize:11})}>
+              🔌 USB WebSerial
+            </button>
+            <button onClick={()=>{setLive(l=>{if(l){setSigData([]);setSessionTime(0);smootherRef.current?.reset();fatigueBaseRef.current=null;}return!l;})}}
+              style={btn(live?"danger":"success",{padding:"6px 18px"})}>
+              {live?"■ Stop":"▶ Start"}
+            </button>
+          </div>
         </div>
         <div style={{background:C.input,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
           <ResponsiveContainer width="100%" height={148}>
