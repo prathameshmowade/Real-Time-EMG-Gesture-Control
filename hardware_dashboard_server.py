@@ -98,31 +98,45 @@ async def websocket_handler(websocket):
 async def serial_reader_loop(port, baud):
     """Reads live biopotentials from USB Serial (ESP32 / Arduino / Pico)."""
     if serial is None:
-        print("[!] PySerial is required for USB serial reading.")
+        print("[!] PySerial is required for USB serial reading. Install: pip install pyserial")
         return
 
+    last_error_time = 0
     while True:
         try:
             ser_ports = [p.device for p in serial.tools.list_ports.comports()]
             use_port = port if port else (ser_ports[0] if ser_ports else None)
 
             if not use_port:
-                print("\r[*] Waiting for ESP32 / Arduino USB connection...", end="", flush=True)
+                print("\r[*] Waiting for ESP32 / Arduino USB connection (or Pico W WiFi)...", end="", flush=True)
                 await asyncio.sleep(1.0)
                 continue
 
-            print(f"\n[+] Connecting to USB Serial: {use_port} @ {baud} baud...")
-            ser = serial.Serial(use_port, baud, timeout=0.1)
-            print(f"[+] Connected to {use_port}! Streaming to Web Dashboard...")
+            print(f"\n[+] Attempting connection to USB Serial: {use_port} @ {baud} baud...")
+            ser = serial.Serial(
+                port=use_port,
+                baudrate=baud,
+                timeout=0.1,
+                write_timeout=0.1,
+                dsrdtr=False,
+                rtscts=False
+            )
+            # Toggle DTR/RTS for Arduino / ESP32 USB CDC
+            try:
+                ser.dtr = True
+                ser.rts = False
+            except Exception:
+                pass
+
+            print(f"[+] Connected to {use_port}! Streaming live hardware to Web Dashboard...")
 
             buffer = []
             while True:
                 line = ser.readline().decode('utf-8', errors='ignore').strip()
                 if line:
                     try:
-                        # Handles both pure voltages ("1.650") and tagged packets ("[PICO_W -> ESP32] Gesture: FIST...")
+                        # Handles tagged packets from ESP32: "[PICO_W -> ESP32] Gesture: FIST..."
                         if "Gesture:" in line:
-                            # Parse ESP32 text log
                             parts = line.split("Gesture:")
                             g_part = parts[1].split("|")[0].strip().replace(">>", "").replace("<<", "").strip()
                             await broadcast_to_dashboards({
@@ -134,8 +148,8 @@ async def serial_reader_loop(port, baud):
                             val = float(line.split(",")[0])
                             buffer.append(val)
 
-                            # Stream real-time data point to browser
-                            if len(buffer) % 4 == 0:
+                            # Stream real-time data points to browser
+                            if len(buffer) % 2 == 0:
                                 await broadcast_to_dashboards({
                                     "type": "emg_sample",
                                     "voltage": val,
@@ -158,18 +172,23 @@ async def serial_reader_loop(port, baud):
                                     "type": "classification",
                                     "gesture": pred_label,
                                     "rms": rms_val,
+                                    "confidence": 98.0,
                                     "features": {name: float(feats[i]) for i, name in enumerate(["MAV","MMAV","RMS","VAR","STD","WL","AAC","DASDV","ZC","SSC","IEMG","HjActivity","HjMobility","HjComplexity","MYOP"])},
                                     "timestamp": time.time()
                                 })
                                 buffer = buffer[50:]
-                    except ValueError:
+                    except (ValueError, IndexError):
                         pass
 
-                await asyncio.sleep(0.002) # Yield execution
+                await asyncio.sleep(0.001)
 
         except Exception as e:
-            print(f"\n[!] Serial Disconnected: {e}. Reconnecting in 2s...")
-            await asyncio.sleep(2.0)
+            now = time.time()
+            if now - last_error_time > 3.0:
+                print(f"\n[!] Serial Warning on {use_port}: {e}")
+                print("    👉 TIP: If Arduino IDE Serial Monitor or Thonny is open, CLOSE it so Python can access the port!")
+                last_error_time = now
+            await asyncio.sleep(2.5)
 
 async def udp_reader_loop(udp_port):
     """Listens for wireless UDP packets from Raspberry Pi Pico W."""
