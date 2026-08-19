@@ -32,8 +32,12 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
 .env
 .venv
+
+# Generated Datasets & Binary Archives
+dataset/*.csv
+dataset/*.npz
+dataset/uci_emg/
+my_emg_recordings/
+

@@ -1,0 +1,62 @@
+{
+  "dataset_name": "Multi-Subject Surface EMG Gesture Recognition Dataset",
+  "sampling_rate_hz": 500,
+  "window_size_samples": 256,
+  "window_duration_seconds": 0.512,
+  "total_samples": 7200,
+  "num_subjects": 20,
+  "subject_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "gestures": {
+    "0": "FIST",
+    "1": "OPEN_HAND",
+    "2": "WRIST_UP",
+    "3": "WRIST_DOWN",
+    "4": "DOUBLE_FLEX",
+    "5": "RELAX"
+  },
+  "feature_names": [
+    "MAV",
+    "MMAV",
+    "RMS",
+    "VAR",
+    "STD",
+    "WL",
+    "AAC",
+    "DASDV",
+    "ZC",
+    "SSC",
+    "IEMG",
+    "HjorthActivity",
+    "HjorthMobility",
+    "HjorthComplexity",
+    "MYOP"
+  ],
+  "train_split": "Users 0 to 16 (6,120 samples, 85%)",
+  "test_split": "Users 17 to 19 (1,080 samples, 15%)",
+  "files": {
+    "features_csv": "emg_features_dataset.csv",
+    "raw_csv": "emg_raw_signals_dataset.csv",
+    "numpy_archive": "emg_dataset.npz"
+  }
+}
