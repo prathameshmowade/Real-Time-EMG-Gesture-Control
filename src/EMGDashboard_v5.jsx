@@ -668,10 +668,10 @@ export default function EMGDashboard(){
         // SNR
         const snr=Math.max(0,+(20*Math.log10(rms/(rawF[4]*0.2+0.001))).toFixed(1));
 
-        // Fatigue
+        // Fatigue detection: requires sustained elevated RMS above 0.35V
         if(finalG==="RELAX"){
-          if(!fatigueBaseRef.current)fatigueBaseRef.current=rms;
-          else if(rms>fatigueBaseRef.current*1.25)setFatigueWarn(true);
+          if(!fatigueBaseRef.current) fatigueBaseRef.current=Math.max(rms, 0.05);
+          else if(rms > 0.35 && rms > fatigueBaseRef.current * 2.5) setFatigueWarn(true);
         }
 
         setPred({g:finalG,conf,proba,intensity,snr,smoothed:true});
