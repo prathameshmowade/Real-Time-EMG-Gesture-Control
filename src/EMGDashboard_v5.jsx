@@ -527,6 +527,7 @@ export default function EMGDashboard(){
   },[live]);
 
   // ── Hardware WebSocket & WebSerial Functions ─────────────────
+  // ── Hardware WebSocket & WebSerial Functions ─────────────────
   const toggleHardwareWebSocket = useCallback(()=>{
     if(hwMode && wsRef.current){
       wsRef.current.close();
@@ -627,21 +628,19 @@ export default function EMGDashboard(){
     }
   },[live]);
 
-  // ── Signal loop (Simulated generator active only when not in HW mode) ────────────────
+  // ── Signal loop ──────────────────────────────────────────────────
   useEffect(()=>{
     if(!live||!ready)return;
     intRef.current=setInterval(()=>{
-      if(!hwModeRef.current){
-        const pts=[],sc=calSRef.current??uScaleRef.current;
-        for(let s=0;s<5;s++){
-          tick.current++;
-          const v=emgSample(simGRef.current,sc,tick.current/SR);
-          pts.push({i:tick.current,v:+v.toFixed(4)});
-          bufRef.current.push(v);if(bufRef.current.length>WIN)bufRef.current.shift();
-          if(calPhRef.current==="recording")calBufRef.current.push(v);
-        }
-        setSigData(p=>[...p,...pts].slice(-DISP));
+      const pts=[],sc=calSRef.current??uScaleRef.current;
+      for(let s=0;s<5;s++){
+        tick.current++;
+        const v=emgSample(simGRef.current,sc,tick.current/SR);
+        pts.push({i:tick.current,v:+v.toFixed(4)});
+        bufRef.current.push(v);if(bufRef.current.length>WIN)bufRef.current.shift();
+        if(calPhRef.current==="recording")calBufRef.current.push(v);
       }
+      setSigData(p=>[...p,...pts].slice(-DISP));
 
       if(tick.current%25===0&&bufRef.current.length>=WIN){
         const rawF=extractFeatures(bufRef.current);
@@ -663,7 +662,7 @@ export default function EMGDashboard(){
         // Intensity from RMS
         const rms=rawF[2];
         const baseline=(calResult?.baseline||40)/1000;
-        const maxAmp=calResult?Math.max(...Object.values(calResult.amps||CAL_EXP_RMS)):0.67;
+        const maxAmp=calResult?Math.max(...Object.values(calResult.amps||{CAL_EXP_RMS})):0.67;
         const intensity=Math.min(100,Math.max(0,Math.round((rms-baseline)/(maxAmp-baseline+0.01)*100)));
 
         // SNR
@@ -675,20 +674,20 @@ export default function EMGDashboard(){
           else if(rms>fatigueBaseRef.current*1.25)setFatigueWarn(true);
         }
 
-        if(!hwModeRef.current){
-          setPred({g:finalG,conf,proba,intensity,snr,smoothed:true});
+        setPred({g:finalG,conf,proba,intensity,snr,smoothed:true});
 
-          if(finalG!=="UNKNOWN"&&conf>0.65&&finalG!==lastGRef.current){
-            lastGRef.current=finalG;
-            doAction(finalG,intensity);
-            setSessionLog(p=>[{id:tick.current,time:new Date().toLocaleTimeString(),
-              gesture:finalG,conf:+(conf*100).toFixed(1),intensity,snr},...p].slice(0,200));
-          }
+        if(finalG!=="UNKNOWN"&&conf>0.65&&finalG!==lastGRef.current){
+          lastGRef.current=finalG;
+          doAction(finalG,intensity);
+          setSessionLog(p=>[{id:tick.current,time:new Date().toLocaleTimeString(),
+            gesture:finalG,conf:+(conf*100).toFixed(1),intensity,snr},...p].slice(0,200));
         }
       }
     },10);
     return()=>clearInterval(intRef.current);
   },[live,ready,calResult]);
+
+
 
   // Cal phases
   useEffect(()=>{if(calPhase!=="get_ready")return;if(calReadyCnt<=0){setCalPhase("recording");return;}const t=setTimeout(()=>setCalReadyCnt(c=>c-1),1000);return()=>clearTimeout(t);},[calPhase,calReadyCnt]);
