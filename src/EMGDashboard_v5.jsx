@@ -814,7 +814,7 @@ export default function EMGDashboard(){
           <SL>Simulate Gesture</SL>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
             {GESTURES.map(g=>(
-              <button key={g} onClick={()=>setSimG(g)}
+              <button key={g} onClick={()=>{setSimG(g);if(!live)setLive(true);}}
                 style={{background:simG===g?G_COLOR[g]:G_BG[g],color:simG===g?"#fff":G_COLOR[g],
                   border:`2px solid ${simG===g?G_COLOR[g]:"transparent"}`,borderRadius:10,
                   padding:"8px 4px",cursor:"pointer",fontWeight:700,fontSize:11,
