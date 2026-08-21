@@ -397,6 +397,27 @@ const IntensityBar=({value,color=C.blue,label=""})=>(
   </div>
 );
 
+// Storage fallback helpers (works in local browser localStorage and sandbox)
+const storageGet = async (key) => {
+  try {
+    if (typeof window !== "undefined" && window.storage?.get) {
+      const r = await window.storage.get(key);
+      return r ? r.value : null;
+    }
+    return typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
+  } catch(e) { return null; }
+};
+
+const storageSet = async (key, val) => {
+  try {
+    if (typeof window !== "undefined" && window.storage?.set) {
+      await window.storage.set(key, val);
+    } else if (typeof localStorage !== "undefined") {
+      localStorage.setItem(key, val);
+    }
+  } catch(e) {}
+};
+
 // ══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════
@@ -485,9 +506,9 @@ export default function EMGDashboard(){
           setMeta(meta);setReady(true);
           (async()=>{
             try{
-              const r=await window.storage.get("emg-cal-v5");if(r){const c=JSON.parse(r.value);setCalResult(c);calSRef.current=c.sf;}
-              const m=await window.storage.get("emg-gmap");if(m){const g=JSON.parse(m.value);setGestureMap(g);gmapRef.current=g;}
-              const p=await window.storage.get("emg-profiles");if(p){setProfiles(JSON.parse(p.value));}
+              const rVal=await storageGet("emg-cal-v5");if(rVal){const c=JSON.parse(rVal);setCalResult(c);calSRef.current=c.sf;}
+              const mVal=await storageGet("emg-gmap");if(mVal){const g=JSON.parse(mVal);setGestureMap(g);gmapRef.current=g;}
+              const pVal=await storageGet("emg-profiles");if(pVal){setProfiles(JSON.parse(pVal));}
             }catch(e){}
           })();
         },600);
@@ -532,10 +553,17 @@ export default function EMGDashboard(){
             if(bufRef.current.length>WIN) bufRef.current.shift();
           }else if(data.type==="classification"||data.type==="gesture_event"){
             const g=data.gesture;
-            const rms=data.rms||0.1;
+            const rms=data.rms||(g==="FIST"?0.75:g==="OPEN_HAND"?0.35:g==="DOUBLE_PULSE"?0.85:0.04);
             const conf=data.confidence?(data.confidence/100):0.95;
             const intensity=Math.min(100,Math.round(rms*150));
             setPred({g,conf,proba:{[g]:conf},intensity,snr:28,smoothed:true});
+
+            // Generate real-time visual biopotential burst on the chart
+            const burst=genWin(g, 1.0);
+            const pts=burst.slice(0, 15).map((val, idx)=>({i:tick.current+idx, v:+val.toFixed(4)}));
+            tick.current+=15;
+            setSigData(p=>[...p,...pts].slice(-DISP));
+
             if(g!=="UNKNOWN"&&g!==lastGRef.current){
               lastGRef.current=g;
               doAction(g,intensity);
@@ -635,7 +663,7 @@ export default function EMGDashboard(){
         // Intensity from RMS
         const rms=rawF[2];
         const baseline=(calResult?.baseline||40)/1000;
-        const maxAmp=calResult?Math.max(...Object.values(calResult.amps||{CAL_EXP_RMS})):0.67;
+        const maxAmp=calResult?Math.max(...Object.values(calResult.amps||CAL_EXP_RMS)):0.67;
         const intensity=Math.min(100,Math.max(0,Math.round((rms-baseline)/(maxAmp-baseline+0.01)*100)));
 
         // SNR
@@ -688,7 +716,7 @@ export default function EMGDashboard(){
     const result={sf,baseline:+((amps.RELAX??0.04)*1000).toFixed(2),amps,allStats:calAllStats,quality:cnt>=5?"Excellent":cnt>=3?"Good":"Fair"};
     setCalResult(result);calSRef.current=result.sf;setCalPhase("complete");
     smootherRef.current?.reset();
-    window.storage.set("emg-cal-v5",JSON.stringify(result)).catch(()=>{});
+    storageSet("emg-cal-v5",JSON.stringify(result));
   },[calPhase,calAllStats]);
 
   const doAction=useCallback((g,intensity=100)=>{
@@ -720,11 +748,11 @@ export default function EMGDashboard(){
   const saveProfile=()=>{
     if(!calResult||!profileName.trim())return;
     const upd={...profiles,[profileName]:calResult};setProfiles(upd);setActiveProfile(profileName);
-    window.storage.set("emg-profiles",JSON.stringify(upd)).catch(()=>{});
+    storageSet("emg-profiles",JSON.stringify(upd));
   };
   const loadProfile=(name)=>{const p=profiles[name];if(!p)return;setCalResult(p);calSRef.current=p.sf;setActiveProfile(name);smootherRef.current?.reset();};
   const exportCSV=()=>{const rows=[["Time","Gesture","Conf%","Intensity%","SNR"],...sessionLog.map(l=>[l.time,l.gesture,l.conf,l.intensity,l.snr])];const csv=rows.map(r=>r.join(",")).join("\n");const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download=`emg_${new Date().toISOString().slice(0,10)}.csv`;a.click();};
-  const saveGMap=()=>{window.storage.set("emg-gmap",JSON.stringify(gestureMap)).catch(()=>{});};
+  const saveGMap=()=>{storageSet("emg-gmap",JSON.stringify(gestureMap));};
   const fmtTime=s=>`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
 
   // ══════════════════════════════════════════════════════════

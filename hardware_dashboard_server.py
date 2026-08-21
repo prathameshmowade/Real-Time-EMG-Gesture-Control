@@ -92,7 +92,7 @@ async def websocket_handler(websocket):
     except Exception:
         pass
     finally:
-        CONNECTED_CLIENTS.remove(websocket)
+        CONNECTED_CLIENTS.discard(websocket)
         print(f"[-] Web Dashboard disconnected.")
 
 async def serial_reader_loop(port, baud):
@@ -113,7 +113,7 @@ async def serial_reader_loop(port, baud):
 
             print(f"\n[+] Connecting to USB Serial: {use_port} @ {baud} baud...")
             try:
-                ser = serial.Serial(use_port, baud, timeout=0.2, write_timeout=0.2)
+                ser = serial.Serial(use_port, baud, timeout=0.02, write_timeout=0.2)
                 ser.dtr = False
                 ser.rts = False
                 time.sleep(0.5)
@@ -133,12 +133,27 @@ async def serial_reader_loop(port, baud):
                     try:
                         # Handles both pure voltages ("1.650") and tagged packets ("[PICO_W -> ESP32] Gesture: FIST...")
                         if "Gesture:" in line:
-                            # Parse ESP32 text log
+                            # Parse ESP32 text log: "[PICO_W -> ESP32] Gesture: >> FIST << | RMS: 0.720 V"
                             parts = line.split("Gesture:")
                             g_part = parts[1].split("|")[0].strip().replace(">>", "").replace("<<", "").strip()
+                            rms_val = 0.5
+                            raw_val = 1.65
+                            if "RMS:" in line:
+                                try:
+                                    rms_val = float(line.split("RMS:")[1].split("V")[0].strip())
+                                except Exception:
+                                    pass
+                            if "Raw:" in line:
+                                try:
+                                    raw_val = float(line.split("Raw:")[1].split("V")[0].strip())
+                                except Exception:
+                                    pass
+
                             await broadcast_to_dashboards({
                                 "type": "gesture_event",
                                 "gesture": g_part,
+                                "rms": rms_val,
+                                "voltage": raw_val,
                                 "timestamp": time.time()
                             })
                         else:
@@ -189,10 +204,9 @@ async def udp_reader_loop(udp_port):
     sock.setblocking(False)
     print(f"[+] UDP Listener active on port {udp_port}. Ready for Pico W wireless packets...")
 
-    loop = asyncio.get_event_loop()
     while True:
         try:
-            data, addr = await loop.sock_recv(sock, 1024)
+            data, addr = sock.recvfrom(1024)
             msg = data.decode('utf-8', errors='ignore').strip()
             
             # Format: "GESTURE,RMS,VOLTAGE"
@@ -208,6 +222,8 @@ async def udp_reader_loop(udp_port):
                 "voltage": voltage,
                 "timestamp": time.time()
             })
+        except (BlockingIOError, socket.error):
+            await asyncio.sleep(0.005)
         except Exception:
             await asyncio.sleep(0.01)
 
