@@ -59,15 +59,15 @@ def connect_wifi():
 GESTURES = ['RELAX', 'FIST', 'OPEN_HAND', 'DOUBLE_PULSE']
 
 # State tracking for double-pulse detection
-last_peak_time = 0
-pulse_count = 0
+first_pulse_time = 0
+pulse_state = "IDLE"  # "IDLE" -> "FIRST_PULSE" -> "WAIT_SECOND_PULSE"
 
 def classify_basic_movement(buffer, baseline_noise):
     """
     Robust Envelope & Energy Classifier tailored for single-channel EMG V3.0.
     Eliminates complex multi-muscle crosstalk and focuses on clean, distinct gestures.
     """
-    global last_peak_time, pulse_count
+    global first_pulse_time, pulse_state
     N = len(buffer)
     if N == 0:
         return 'RELAX', 0.0
@@ -78,19 +78,30 @@ def classify_basic_movement(buffer, baseline_noise):
 
     # Dynamic noise floor threshold (auto-adjusts to resting baseline)
     noise_gate = max(baseline_noise * 1.5, 0.05)
+    now = time.ticks_ms()
     
+    # Track state machine for clean double-pulse (contraction -> release -> contraction)
+    if pulse_state == "FIRST_PULSE":
+        if rms < 0.20:
+            pulse_state = "WAIT_SECOND_PULSE"
+        elif time.ticks_diff(now, first_pulse_time) > 800:
+            pulse_state = "IDLE"
+    elif pulse_state == "WAIT_SECOND_PULSE":
+        if time.ticks_diff(now, first_pulse_time) > 800:
+            pulse_state = "IDLE"
+        elif rms > 0.35 and time.ticks_diff(now, first_pulse_time) >= 180:
+            pulse_state = "IDLE"
+            first_pulse_time = 0
+            return 'DOUBLE_PULSE', rms
+
     # 1. Check if resting
     if rms < noise_gate:
         return 'RELAX', rms
 
-    # 2. Check for Double Pulse (quick contraction twice within 700 ms)
-    now = time.ticks_ms()
-    if rms > 0.35:
-        if time.ticks_diff(now, last_peak_time) > 200 and time.ticks_diff(now, last_peak_time) < 700:
-            last_peak_time = now
-            return 'DOUBLE_PULSE', rms
-        else:
-            last_peak_time = now
+    # 2. Check for start of first pulse
+    if rms > 0.35 and pulse_state == "IDLE":
+        first_pulse_time = now
+        pulse_state = "FIRST_PULSE"
 
     # 3. High Force vs Moderate Contraction
     if rms >= 0.45 or mav >= 0.35:

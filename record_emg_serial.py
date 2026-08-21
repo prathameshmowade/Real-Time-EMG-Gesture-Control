@@ -78,9 +78,11 @@ def record_live_dataset(port="COM3", baud=115200, subject_id=1, trials_per_gestu
                         if line:
                             # Parse voltage / analog value
                             val = float(line)
-                            # If raw 10-bit or 12-bit ADC, convert to voltage (0-3.3V)
-                            if val > 10.0:
-                                val = (val / 1023.0) * 3.3  # 10-bit Arduino ADC
+                            # If raw 12-bit or 10-bit ADC, convert to voltage
+                            if val > 1023.0:
+                                val = (val / 4095.0) * 3.3  # 12-bit ESP32 / Pico ADC
+                            elif val > 10.0:
+                                val = (val / 1023.0) * 5.0  # 10-bit Arduino Uno ADC
                             buffer.append(val)
                     except ValueError:
                         continue

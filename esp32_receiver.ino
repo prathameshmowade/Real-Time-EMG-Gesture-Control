@@ -92,6 +92,8 @@ void loop() {
       gesture = msg.substring(0, firstComma);
       if (secondComma > 0) {
         rms = msg.substring(firstComma + 1, secondComma).toFloat();
+      } else {
+        rms = msg.substring(firstComma + 1).toFloat();
       }
     } else {
       gesture = msg;

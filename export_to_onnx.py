@@ -48,7 +48,7 @@ def export_tcn_to_onnx(model_path="tcn_model.pth", output_path="tcn_model.onnx")
             "handcrafted_features": {0: "batch_size"},
             "gesture_logits": {0: "batch_size"}
         },
-        opset_version=14
+        opset_version=18
     )
     print(f" Successfully exported TCN model to ONNX: {output_path} ({os.path.getsize(output_path) / 1024:.1f} KB)")
 

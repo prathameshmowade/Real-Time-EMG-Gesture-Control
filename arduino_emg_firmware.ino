@@ -16,7 +16,9 @@
 const int EMG_PIN = A0;             // Analog input pin
 const unsigned long SAMPLE_INTERVAL_MICROS = 2000; // 500 Hz = 2000 microseconds (2 ms)
 
-unsigned long previousMicros = 0;
+// Baseline DC-Offset Tracking (auto-centers resting signal)
+float baselineOffset = 2.5f;
+const float alpha = 0.002f; // EMA filter smoothing factor
 
 void setup() {
   // Initialize high-speed USB Serial communication
@@ -28,6 +30,9 @@ void setup() {
   // Set ADC resolution if on 32-bit MCU (ESP32 / Pico / Arduino Due)
   #if defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_RP2040)
     analogReadResolution(12); // 12-bit ADC (0 - 4095)
+    baselineOffset = 1.65f;
+  #else
+    baselineOffset = 2.5f;    // 10-bit ADC (0 - 1023)
   #endif
 }
 
@@ -36,22 +41,23 @@ void loop() {
 
   // Enforce precise sampling rate (500 Hz)
   if (currentMicros - previousMicros >= SAMPLE_INTERVAL_MICROS) {
-    previousMicros = currentMicros;
+    previousMicros += SAMPLE_INTERVAL_MICROS;
 
     // 1. Read Raw Analog Value (0 - 1023 on Uno, 0 - 4095 on ESP32/Pico)
     int rawADC = analogRead(EMG_PIN);
 
-    // 2. Convert to normalized voltage (-1.0V to +1.0V or centered voltage)
+    // 2. Convert to physical voltage (0 to 3.3V / 5.0V)
     #if defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_RP2040)
       float voltage = ((float)rawADC / 4095.0f) * 3.3f;
     #else
       float voltage = ((float)rawADC / 1023.0f) * 5.0f;
     #endif
 
-    // Center the biopotential signal around zero
-    float centeredSignal = voltage - (voltage / 2.0f); // or high-pass offset
+    // 3. Adaptive DC Baseline Removal (Centers biopotential around 0.0V)
+    baselineOffset = (1.0f - alpha) * baselineOffset + alpha * voltage;
+    float centeredSignal = voltage - baselineOffset;
 
-    // 3. Stream to PC over USB Serial
-    Serial.println(voltage, 4);
+    // 4. Stream zero-centered biopotential to PC over USB Serial
+    Serial.println(centeredSignal, 4);
   }
 }

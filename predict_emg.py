@@ -52,8 +52,8 @@ def extract_features_standalone(signal, sampling_rate=500):
     
     # 9-10. Frequency Surrogates
     zc = np.sum(((sig[:-1] * sig[1:]) < 0) & (np.abs(diff) > 0.01))
-    diff_sign = np.diff(np.sign(diff))
-    ssc = np.sum((diff_sign != 0) & (np.abs(diff[:-1]) > 0.003))
+    d1, d2 = diff[:-1], diff[1:]
+    ssc = np.sum((np.abs(d1 - d2) >= 0.003) & (((d1 > 0) & (d2 < 0)) | ((d1 < 0) & (d2 > 0))))
     
     # 11. Integrated EMG
     iemg = np.sum(np.abs(sig))
@@ -155,8 +155,8 @@ def run_prediction(model_type="kaggle", input_file=None):
             from train_bilstm_model import CNN_BiLSTM
             model = CNN_BiLSTM(n_classes=len(gestures))
         elif model_type.lower() == "cnn":
-            from train_cnn_model import DualPathTemporalSpectralFusionCNN
-            model = DualPathTemporalSpectralFusionCNN(num_classes=len(gestures))
+            from train_cnn_model import DTSF_CNN, compute_welch_psd
+            model = DTSF_CNN(n_classes=len(gestures))
         
         try:
             checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
@@ -216,10 +216,19 @@ def run_prediction(model_type="kaggle", input_file=None):
             confidence = probs[pred_idx] * 100.0 if probs is not None and pred_idx < len(probs) else 100.0
         else:
             import torch
-            sig_t = torch.tensor(sig, dtype=torch.float32).unsqueeze(0).unsqueeze(1) # (1, 1, 256)
-            feat_t = torch.tensor(extract_features_standalone(sig), dtype=torch.float32).unsqueeze(0) # (1, 15)
+            sig_arr = np.array(sig, dtype=np.float32)
+            sig_norm = (sig_arr - sig_arr.mean()) / (sig_arr.std() + 1e-8)
+            sig_t = torch.tensor(sig_norm, dtype=torch.float32).unsqueeze(0).unsqueeze(0) # (1, 1, 256)
+            feat_t = torch.tensor(extract_features_standalone(sig_arr), dtype=torch.float32).unsqueeze(0) # (1, 15)
+            
             with torch.no_grad():
-                out = model(sig_t, feat_t)
+                if model_type.lower() == "cnn":
+                    from train_cnn_model import compute_welch_psd
+                    psd = compute_welch_psd(sig_arr)
+                    psd_t = torch.tensor(psd, dtype=torch.float32).unsqueeze(0).unsqueeze(0) # (1, 1, 33)
+                    out = model(sig_t, psd_t, feat_t)
+                else:
+                    out = model(sig_t, feat_t)
                 prob_t = torch.softmax(out, dim=1)
                 pred_idx = int(torch.argmax(prob_t, dim=1).item())
                 probs = prob_t.squeeze(0).numpy()

@@ -149,7 +149,16 @@ def run_live_bridge(port=None, baud=115200, model_type="ninapro", window_size=20
                     pred_label = gestures[pred_idx] if pred_idx < len(gestures) else f"Class_{pred_idx}"
 
                 probs = model.predict_proba(feats)[0] if hasattr(model, "predict_proba") else None
-                conf = probs[int(raw_pred)] * 100.0 if probs is not None and isinstance(raw_pred, (int, np.integer)) and int(raw_pred) < len(probs) else 100.0
+                if probs is not None:
+                    if hasattr(model, "classes_") and raw_pred in model.classes_:
+                        idx = list(model.classes_).index(raw_pred)
+                        conf = probs[idx] * 100.0
+                    elif isinstance(raw_pred, (int, np.integer)) and int(raw_pred) < len(probs):
+                        conf = probs[int(raw_pred)] * 100.0
+                    else:
+                        conf = float(np.max(probs)) * 100.0
+                else:
+                    conf = 100.0
                 latency = (time.perf_counter() - t0) * 1000.0
 
                 # Print clean live status bar
@@ -180,7 +189,7 @@ def simulate_hardware_stream(model, gestures, window_size=200, step_size=50):
         while True:
             current_gest = sim_gestures[g_idx % len(sim_gestures)]
             # Generate continuous synthetic EMG chunk
-            chunk = simulate_emg(current_gest, user_scale=1.0, fatigue_level=0.0)[:step_size]
+            chunk = simulate_emg(current_gest, user_scale=1.0, fatigue=0.0)[:step_size]
             buffer.extend(chunk)
 
             if len(buffer) >= window_size:
